@@ -2,7 +2,7 @@
 This simply provides a branch (dev) with many fixes from microbin main repository applied.
 ### list of patches/PR's applied
 -  Fix Json db losing already saved pasta's on crash/power failure #281
--  Updates dependencies #280
+-  Updates dependencies #280 & #254 
 -  Adds a feature no-c-deps which makes microbin easy to crosscompile #279
 -  Awnser Range requests and stream files downloads #277
 
