@@ -96,6 +96,7 @@ pub async fn create(
         private: false,
         readonly: false,
         editable: ARGS.editable,
+        hide_read_count: false,
         encrypt_server: false,
         encrypted_key: Some(String::from("")),
         encrypt_client: false,
@@ -162,6 +163,10 @@ pub async fn create(
                     new_pasta.encrypted_key =
                         Some(std::str::from_utf8(&chunk).unwrap().to_string());
                 }
+                continue;
+            }
+            "hide_read_count" => {
+                new_pasta.hide_read_count = true;
                 continue;
             }
             "expiration" => {
