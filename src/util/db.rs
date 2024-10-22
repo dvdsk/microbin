@@ -46,18 +46,6 @@ pub fn update(pastas: Option<&Vec<Pasta>>, pasta: Option<&Pasta>) {
 }
 
 #[allow(unused)]
-pub fn update_all(pastas: &Vec<Pasta>) {
-    if ARGS.json_db {
-        super::db_json::update_all(pastas);
-    } else {
-        #[cfg(feature = "default")]
-        super::db_sqlite::update_all(pastas);
-        #[cfg(not(feature = "default"))]
-        panic!("{}", PANIC_MSG);
-    }
-}
-
-#[allow(unused)]
 pub fn delete(pastas: Option<&Vec<Pasta>>, id: Option<u64>) {
     if ARGS.json_db {
         super::db_json::update_all(pastas.expect("Called delete() without passing Pasta vector"));

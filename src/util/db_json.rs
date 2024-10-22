@@ -1,6 +1,9 @@
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, BufWriter};
+use std::sync::Once;
+
+use serde_json::Value;
 
 use crate::Pasta;
 
@@ -30,11 +33,38 @@ fn save_to_file(pasta_data: &Vec<Pasta>) {
     std::fs::rename(tmp_file_path, DATABASE_PATH).expect("Could not update database");
 }
 
+fn migrate() {
+    let Ok(file) = File::open(DATABASE_PATH) else {
+        return;
+    };
+
+    let reader = BufReader::new(file);
+    let deserialized: Value = serde_json::from_reader(reader).unwrap();
+
+    let data = deserialized.as_array_mut().expect("should be vec");
+
+    for pasta in data {
+        let Value::Object(pasta) = pasta else {
+            panic!("corrupt json db");
+        }
+
+        pasta.get()
+
+    }
+}
+
 fn load_from_file() -> io::Result<Vec<Pasta>> {
+    static INIT_JSON_DB: Once = Once::new();
+    INIT_JSON_DB.call_once(|| {
+        // lets not migrate every read
+        // read happens before any update therefore
+        // its safe to only migrate here
+        migrate();
+    });
     let file = File::open(DATABASE_PATH);
     match file {
-        Ok(_) => {
-            let reader = BufReader::new(file.unwrap());
+        Ok(file) => {
+            let reader = BufReader::new(file);
             let data: Vec<Pasta> = match serde_json::from_reader(reader) {
                 Ok(t) => t,
                 _ => Vec::new(),

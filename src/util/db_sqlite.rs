@@ -1,27 +1,25 @@
+use std::sync::Once;
+
 use bytesize::ByteSize;
 use rusqlite::{params, Connection};
 
 use crate::{args::ARGS, pasta::PastaFile, Pasta};
 
 pub fn read_all() -> Vec<Pasta> {
+    static INIT_SQLITE: Once = Once::new();
+    INIT_SQLITE.call_once(|| {
+        // lets not migrate every read
+        // read happens before any update therefore 
+        // its safe to only migrate here
+        create_table();
+        migrate();
+    });
     select_all_from_db()
 }
 
-pub fn update_all(pastas: &[Pasta]) {
-    rewrite_all_to_db(pastas);
-}
-
-pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
+fn create_table() {
     let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
         .expect("Failed to open SQLite database!");
-
-    conn.execute(
-        "
-        DROP TABLE IF EXISTS pasta;
-        );",
-        params![],
-    )
-    .expect("Failed to drop SQLite table for Pasta!");
 
     conn.execute(
         "
@@ -42,85 +40,37 @@ pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
             last_read INTEGER NOT NULL,
             read_count INTEGER NOT NULL,
             burn_after_reads INTEGER NOT NULL,
-            pasta_type TEXT NOT NULL
+            pasta_type TEXT NOT NULL,
+            hide_read_count INTEGER NOT NULL
         );",
         params![],
     )
     .expect("Failed to create SQLite table for Pasta!");
+}
 
-    for pasta in pasta_data.iter() {
-        conn.execute(
-            "INSERT INTO pasta (
-                id,
-                content,
-                file_name,
-                file_size,
-                extension,
-                private,
-                read_only,
-                editable,
-                encrypt_server,
-                encrypt_client,
-                encrypted_key,
-                created,
-                expiration,
-                last_read,
-                read_count,
-                burn_after_reads,
-                pasta_type
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
-            params![
-                pasta.id,
-                pasta.content,
-                pasta.file.as_ref().map_or("", |f| f.name.as_str()),
-                pasta.file.as_ref().map_or(0, |f| f.size.as_u64()),
-                pasta.extension,
-                pasta.private as i32,
-                pasta.readonly as i32,
-                pasta.editable as i32,
-                pasta.encrypt_server as i32,
-                pasta.encrypt_client as i32,
-                pasta.encrypted_key.as_deref(),
-                pasta.created,
-                pasta.expiration,
-                pasta.last_read,
-                pasta.read_count,
-                pasta.burn_after_reads,
-                pasta.pasta_type,
-            ],
-        )
-        .expect("Failed to insert pasta.");
+fn migrate() {
+    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+        .expect("Failed to open SQLite database!");
+
+    let res = conn.execute(
+        "ALTER TABLE pasta 
+ADD hide_read_count INTEGER NOT NULL DEFAULT 0",
+        // In the future add more migrations here
+        params![],
+    );
+
+    if let Err(e) = res {
+        if e.to_string().contains("duplicate column name:") {
+            return;
+        } else {
+            panic!("error while migrating sqlite table: {e}")
+        }
     }
 }
 
-pub fn select_all_from_db() -> Vec<Pasta> {
+fn select_all_from_db() -> Vec<Pasta> {
     let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
         .expect("Failed to open SQLite database!");
-
-    conn.execute(
-        "
-        CREATE TABLE IF NOT EXISTS pasta (
-            id INTEGER PRIMARY KEY,
-            content TEXT NOT NULL,
-            file_name TEXT,
-            file_size INTEGER,
-            extension TEXT NOT NULL,
-            read_only INTEGER NOT NULL,
-            private INTEGER NOT NULL,
-            editable INTEGER NOT NULL,
-            encrypt_server INTEGER NOT NULL,
-            encrypt_client INTEGER NOT NULL,
-            encrypted_key TEXT,
-            created INTEGER NOT NULL,
-            expiration INTEGER NOT NULL,
-            last_read INTEGER NOT NULL,
-            read_count INTEGER NOT NULL,
-            burn_after_reads INTEGER NOT NULL,
-            pasta_type TEXT NOT NULL
-        );",
-        params![],
-    )
-    .expect("Failed to create SQLite table for Pasta!");
 
     let mut stmt = conn
         .prepare("SELECT * FROM pasta ORDER BY created ASC")
@@ -129,7 +79,7 @@ pub fn select_all_from_db() -> Vec<Pasta> {
     let pasta_iter = stmt
         .query_map([], |row| {
             Ok(Pasta {
-                id: row.get(0)?,
+                id: dbg!(row).get(0)?,
                 content: row.get(1)?,
                 file: if let (Some(file_name), Some(file_size)) = (row.get(2)?, row.get(3)?) {
                     let file_size: u64 = file_size;
@@ -157,6 +107,7 @@ pub fn select_all_from_db() -> Vec<Pasta> {
                 read_count: row.get(14)?,
                 burn_after_reads: row.get(15)?,
                 pasta_type: row.get(16)?,
+                hide_read_count: row.get(17)?,
             })
         })
         .expect("Failed to select Pastas from SQLite database.");
@@ -189,7 +140,8 @@ pub fn insert(pasta: &Pasta) {
             last_read INTEGER NOT NULL,
             read_count INTEGER NOT NULL,
             burn_after_reads INTEGER NOT NULL,
-            pasta_type TEXT NOT NULL
+            pasta_type TEXT NOT NULL,
+            hide_read_count INTEGER NOT NULL
         );",
         params![],
     )
@@ -213,8 +165,9 @@ pub fn insert(pasta: &Pasta) {
                 last_read,
                 read_count,
                 burn_after_reads,
-                pasta_type
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                pasta_type,
+                hide_read_count
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
         params![
             pasta.id,
             pasta.content,
@@ -233,6 +186,7 @@ pub fn insert(pasta: &Pasta) {
             pasta.read_count,
             pasta.burn_after_reads,
             pasta.pasta_type,
+            pasta.hide_read_count,
         ],
     )
     .expect("Failed to insert pasta.");
@@ -259,7 +213,8 @@ pub fn update(pasta: &Pasta) {
             last_read = ?14,
             read_count = ?15,
             burn_after_reads = ?16,
-            pasta_type = ?17
+            pasta_type = ?17,
+            hide_read_count = ?18
         WHERE id = ?1;",
         params![
             pasta.id,
@@ -279,6 +234,7 @@ pub fn update(pasta: &Pasta) {
             pasta.read_count,
             pasta.burn_after_reads,
             pasta.pasta_type,
+            pasta.hide_read_count,
         ],
     )
     .expect("Failed to update pasta.");
