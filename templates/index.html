@@ -166,6 +166,10 @@
                     {%- endif %}
                 </optgroup>
                 {%- endif %}
+				<div>
+					<input type="checkbox" id="hide_read_count" name="hide_read_count" value="hide_read_count">
+					<label for="hide_read_count">Hide read count</label>
+				</div>
             </select>
         </div>
         {%- endif %}
@@ -410,8 +414,16 @@
 
     #settings {
         display: grid;
+<<<<<<< HEAD
         grid-gap: 10px;
         grid-template-columns: repeat(auto-fit, 152px);
+||||||| 84136f1
+        grid-gap: 6px;
+        grid-template-columns: repeat(auto-fit, 150px);
+=======
+        grid-gap: 6px;
+        grid-template-columns: repeat(auto-fit, 160px);
+>>>>>>> pr145/hide-readcount
         grid-template-rows: repeat(1, 90px);
         margin-bottom: 1rem;
     }

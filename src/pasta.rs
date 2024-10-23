@@ -62,6 +62,7 @@ pub struct Pasta {
     pub private: bool,
     pub readonly: bool,
     pub editable: bool,
+    pub hide_read_count: bool,
     pub encrypt_server: bool,
     pub encrypt_client: bool,
     pub encrypted_key: Option<String>,

@@ -69,3 +69,6 @@ __zstd = ["actix-web/compress-zstd"]
 [profile.release]
 lto = true
 strip = true
+
+[dev-dependencies]
+tempfile = "3.13.0"
