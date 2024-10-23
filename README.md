@@ -14,6 +14,7 @@ This simply provides a branch (dev) with many fixes from microbin main repositor
 -  Fix raw pastes returning 404 #218
 -  Minor fixups #211
 -  Prefix some URLs with args.public_path_as_str() #194
+-  Checkbox to hide read counter per pasta #145 
 
 
 ![Screenshot](.github/index.png)
