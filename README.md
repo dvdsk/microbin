@@ -2,15 +2,17 @@
 This simply provides a branch (dev) with many fixes from microbin main repository applied.
 ### list of patches/PR's applied
 -  Fix Json db losing already saved pasta's on crash/power failure #281
--  Updates dependencies #280 & #254 
+-  Updates dependencies #280 
 -  Adds a feature no-c-deps which makes microbin easy to crosscompile #279
 -  Answer Range requests and stream files downloads #277
 -  Fix default value comments for some environment variables #268
 -  Fix privacyDropdown is null issue #267
 -  Fix never expire condition #260
 -  Attachments compatible with absolute path #255
+-  Updates dependencies #254 
 -  Set charset=utf-8 for /raw/{id} response #246
 -  Specify charset for non english words #244
+-  fix: division by zero on 32-bit platform #239
 -  Fix raw pastes returning 404 #218
 -  Minor fixups #211
 -  Prefix some URLs with args.public_path_as_str() #194
