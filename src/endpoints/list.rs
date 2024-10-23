@@ -21,9 +21,9 @@ pub async fn list(data: web::Data<AppState>) -> HttpResponse {
             .finish();
     }
 
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // sort pastas in reverse-chronological order of creation time
     pastas.sort_by(|a, b| b.created.cmp(&a.created));

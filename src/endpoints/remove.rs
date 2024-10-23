@@ -11,11 +11,11 @@ use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, remove_expired};
 use crate::AppState;
 use askama::Template;
-use std::fs;
+use tokio::fs;
 
 #[get("/remove/{id}")]
 pub async fn remove(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -25,12 +25,16 @@ pub async fn remove(data: web::Data<AppState>, id: web::Path<String>) -> HttpRes
 
     for (i, pasta) in pastas.iter().enumerate() {
         if pasta.id == id {
-            // if it's encrypted or read-only, it needs password to be deleted
+            // if it's encrypted or readonly, it needs password to be deleted
             if pasta.encrypt_server || pasta.readonly {
                 return HttpResponse::Found()
                     .append_header((
                         "Location",
-                        format!("{}/auth_remove_private/{}", ARGS.public_path_as_str(), pasta.id_as_animals()),
+                        format!(
+                            "{}/auth_remove_private/{}",
+                            ARGS.public_path_as_str(),
+                            pasta.id_as_animals()
+                        ),
                     ))
                     .finish();
             }
@@ -43,6 +47,7 @@ pub async fn remove(data: web::Data<AppState>, id: web::Path<String>) -> HttpRes
                     pasta.id_as_animals(),
                     name
                 ))
+                .await
                 .is_err()
                 {
                     log::error!("Failed to delete file {}!", name)
@@ -54,6 +59,7 @@ pub async fn remove(data: web::Data<AppState>, id: web::Path<String>) -> HttpRes
                     ARGS.data_dir,
                     pasta.id_as_animals()
                 ))
+                .await
                 .is_err()
                 {
                     log::error!("Failed to delete directory {}!", name)
@@ -62,8 +68,7 @@ pub async fn remove(data: web::Data<AppState>, id: web::Path<String>) -> HttpRes
 
             // remove it from in-memory pasta list
             pastas.remove(i);
-
-            delete(Some(&pastas), Some(id));
+            delete(Some(&pastas), Some(id)).await;
 
             return HttpResponse::Found()
                 .append_header(("Location", format!("{}/list", ARGS.public_path_as_str())))
@@ -71,7 +76,7 @@ pub async fn remove(data: web::Data<AppState>, id: web::Path<String>) -> HttpRes
         }
     }
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
@@ -90,9 +95,9 @@ pub async fn post_remove(
         to_u64(&id.into_inner()).unwrap_or(0)
     };
 
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let password = auth::password_from_multipart(payload).await?;
 
@@ -109,7 +114,7 @@ pub async fn post_remove(
                                 ARGS.data_dir,
                                 pasta.id_as_animals(),
                                 name
-                            ))
+                            )).await
                             .is_err()
                             {
                                 log::error!("Failed to delete file {}!", name)
@@ -120,7 +125,7 @@ pub async fn post_remove(
                                 "{}/attachments/{}/",
                                 ARGS.data_dir,
                                 pasta.id_as_animals()
-                            ))
+                            )).await
                             .is_err()
                             {
                                 log::error!("Failed to delete directory {}!", name)
@@ -130,7 +135,7 @@ pub async fn post_remove(
                         // remove it from in-memory pasta list
                         pastas.remove(i);
 
-                        delete(Some(&pastas), Some(id));
+                        delete(Some(&pastas), Some(id)).await;
 
                         return Ok(HttpResponse::Found()
                             .append_header((
@@ -142,7 +147,11 @@ pub async fn post_remove(
                         return Ok(HttpResponse::Found()
                             .append_header((
                                 "Location",
-                                format!("{}/auth_remove_private/{}/incorrect", ARGS.public_path_as_str(), pasta.id_as_animals()),
+                                format!(
+                                    "{}/auth_remove_private/{}/incorrect",
+                                    ARGS.public_path_as_str(),
+                                    pasta.id_as_animals()
+                                ),
                             ))
                             .finish());
                     }
@@ -150,7 +159,11 @@ pub async fn post_remove(
                     return Ok(HttpResponse::Found()
                         .append_header((
                             "Location",
-                            format!("{}/auth_remove_private/{}/incorrect", ARGS.public_path_as_str(), pasta.id_as_animals()),
+                            format!(
+                                "{}/auth_remove_private/{}/incorrect",
+                                ARGS.public_path_as_str(),
+                                pasta.id_as_animals()
+                            ),
                         ))
                         .finish());
                 }

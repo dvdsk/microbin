@@ -19,7 +19,7 @@ struct QRTemplate<'a> {
 #[get("/qr/{id}")]
 pub async fn getqr(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let u64_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -28,7 +28,7 @@ pub async fn getqr(data: web::Data<AppState>, id: web::Path<String>) -> HttpResp
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;

@@ -21,9 +21,9 @@ struct AuthPasta<'a> {
 #[get("/auth/{id}")]
 pub async fn auth_upload(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -59,9 +59,9 @@ pub async fn auth_upload_with_status(
     param: web::Path<(String, String)>,
 ) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let (id, status) = param.into_inner();
 
@@ -96,9 +96,9 @@ pub async fn auth_upload_with_status(
 #[get("/auth_raw/{id}")]
 pub async fn auth_raw_pasta(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -134,9 +134,9 @@ pub async fn auth_raw_pasta_with_status(
     param: web::Path<(String, String)>,
 ) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let (id, status) = param.into_inner();
 
@@ -171,9 +171,9 @@ pub async fn auth_raw_pasta_with_status(
 #[get("/auth_edit_private/{id}")]
 pub async fn auth_edit_private(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -209,9 +209,9 @@ pub async fn auth_edit_private_with_status(
     param: web::Path<(String, String)>,
 ) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let (id, status) = param.into_inner();
 
@@ -246,9 +246,9 @@ pub async fn auth_edit_private_with_status(
 #[get("/auth_file/{id}")]
 pub async fn auth_file(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -284,9 +284,9 @@ pub async fn auth_file_with_status(
     param: web::Path<(String, String)>,
 ) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let (id, status) = param.into_inner();
 
@@ -321,9 +321,9 @@ pub async fn auth_file_with_status(
 #[get("/auth_remove_private/{id}")]
 pub async fn auth_remove_private(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -359,9 +359,9 @@ pub async fn auth_remove_private_with_status(
     param: web::Path<(String, String)>,
 ) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let (id, status) = param.into_inner();
 

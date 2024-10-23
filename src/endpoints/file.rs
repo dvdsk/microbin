@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::path::PathBuf;
 
 use crate::args::ARGS;
@@ -18,7 +17,7 @@ pub async fn post_secure_file(
     payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -27,7 +26,7 @@ pub async fn post_secure_file(
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -44,15 +43,15 @@ pub async fn post_secure_file(
 
     if found {
         if let Some(ref pasta_file) = pastas[index].file {
-            let file = File::open(format!(
+            let file_path = format!(
                 "{}/attachments/{}/data.enc",
                 ARGS.data_dir,
                 pastas[index].id_as_animals()
-            ))?;
+            );
 
             // Not compatible with NamedFile from actix_files (it needs a File
             // to work therefore secure files do not support streaming
-            let decrypted_data: Vec<u8> = decrypt_file(&password, &file)?;
+            let decrypted_data: Vec<u8> = decrypt_file(&password, &file_path).await?;
 
             // Set the content type based on the file extension
             let content_type = mime_guess::from_path(&pasta_file.name)
@@ -81,7 +80,7 @@ pub async fn get_file(
     data: web::Data<AppState>,
 ) -> Result<HttpResponse, Error> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id_intern = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -90,7 +89,7 @@ pub async fn get_file(
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;

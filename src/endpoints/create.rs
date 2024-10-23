@@ -12,8 +12,9 @@ use bytesize::ByteSize;
 use futures::TryStreamExt;
 use log::warn;
 use rand::Rng;
-use std::io::Write;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::fs;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -24,28 +25,32 @@ struct IndexTemplate<'a> {
 
 #[get("/")]
 pub async fn index() -> impl Responder {
-    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        IndexTemplate {
-            args: &ARGS,
-            status: String::from(""),
-        }
-        .render()
-        .unwrap(),
-    )
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(
+            IndexTemplate {
+                args: &ARGS,
+                status: String::from(""),
+            }
+            .render()
+            .unwrap(),
+        )
 }
 
 #[get("/{status}")]
 pub async fn index_with_status(param: web::Path<String>) -> HttpResponse {
     let status = param.into_inner();
 
-    return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        IndexTemplate {
-            args: &ARGS,
-            status,
-        }
-        .render()
-        .unwrap(),
-    );
+    return HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(
+            IndexTemplate {
+                args: &ARGS,
+                status,
+            }
+            .render()
+            .unwrap(),
+        );
 }
 
 pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
@@ -72,13 +77,13 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
 
 /// receives a file through http Post on url /upload/a-b-c with a, b and c
 /// different animals. The client sends the post in response to a form.
-// TODO: form field order might need to be changed. In my testing the attachment 
-// data is nestled between password encryption key etc <21-10-24, dvdsk> 
+// TODO: form field order might need to be changed. In my testing the attachment
+// data is nestled between password encryption key etc <21-10-24, dvdsk>
 pub async fn create(
     data: web::Data<AppState>,
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -232,7 +237,7 @@ pub async fn create(
                     None => continue,
                 };
 
-                let mut file = match PastaFile::from_unsanitized(path) {
+                let mut pasta_file = match PastaFile::from_unsanitized(path) {
                     Ok(f) => f,
                     Err(e) => {
                         warn!("Unsafe file name: {e:?}");
@@ -240,21 +245,22 @@ pub async fn create(
                     }
                 };
 
-                std::fs::create_dir_all(format!(
+                fs::create_dir_all(format!(
                     "{}/attachments/{}",
                     ARGS.data_dir,
                     &new_pasta.id_as_animals()
                 ))
+                .await
                 .unwrap();
 
                 let filepath = format!(
                     "{}/attachments/{}/{}",
                     ARGS.data_dir,
                     &new_pasta.id_as_animals(),
-                    &file.name()
+                    &pasta_file.name()
                 );
 
-                let mut f = web::block(|| std::fs::File::create(filepath)).await??;
+                let mut file = tokio::fs::File::create(filepath).await?;
                 let mut size = 0;
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
@@ -264,12 +270,12 @@ pub async fn create(
                     {
                         return Err(ErrorBadRequest("File exceeded size limit."));
                     }
-                    f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+                    file.write_all(&chunk).await?;
                 }
 
-                file.size = ByteSize::b(size as u64);
+                pasta_file.size = ByteSize::b(size as u64);
 
-                new_pasta.file = Some(file);
+                new_pasta.file = Some(pasta_file);
                 new_pasta.pasta_type = String::from("text");
             }
             field => {
@@ -281,7 +287,10 @@ pub async fn create(
     if ARGS.readonly && ARGS.uploader_password.is_some() {
         if uploader_password != ARGS.uploader_password.as_ref().unwrap().to_owned() {
             return Ok(HttpResponse::Found()
-                .append_header(("Location", format!("{}/incorrect", ARGS.public_path_as_str())))
+                .append_header((
+                    "Location",
+                    format!("{}/incorrect", ARGS.public_path_as_str()),
+                ))
                 .finish());
         }
     }
@@ -308,9 +317,13 @@ pub async fn create(
             &new_pasta.file.as_ref().unwrap().name()
         );
         if new_pasta.encrypt_client {
-            encrypt_file(&random_key, &filepath).expect("Failed to encrypt file with random key")
+            encrypt_file(&random_key, &filepath)
+                .await
+                .expect("Failed to encrypt file with random key")
         } else {
-            encrypt_file(&plain_key, &filepath).expect("Failed to encrypt file with plain key")
+            encrypt_file(&plain_key, &filepath)
+                .await
+                .expect("Failed to encrypt file with plain key")
         }
     }
 
@@ -320,7 +333,7 @@ pub async fn create(
 
     for (_, pasta) in pastas.iter().enumerate() {
         if pasta.id == id {
-            insert(Some(&pastas), Some(pasta));
+            insert(Some(&pastas), Some(pasta)).await;
         }
     }
 

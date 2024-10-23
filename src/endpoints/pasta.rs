@@ -20,13 +20,13 @@ struct PastaTemplate<'a> {
     args: &'a Args,
 }
 
-fn pastaresponse(
+async fn pastaresponse(
     data: web::Data<AppState>,
     id: web::Path<String>,
     password: String,
 ) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -35,7 +35,7 @@ fn pastaresponse(
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -62,7 +62,7 @@ fn pastaresponse(
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index])).await;
 
         let original_content = pastas[index].content.to_owned();
 
@@ -110,7 +110,7 @@ fn pastaresponse(
         pastas[index].last_read = timenow;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index])).await;
 
         return response;
     }
@@ -128,7 +128,7 @@ pub async fn postpasta(
     payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     let password = auth::password_from_multipart(payload).await?;
-    Ok(pastaresponse(data, id, password))
+    Ok(pastaresponse(data, id, password).await)
 }
 
 #[post("/p/{id}")]
@@ -138,22 +138,22 @@ pub async fn postshortpasta(
     payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     let password = auth::password_from_multipart(payload).await?;
-    Ok(pastaresponse(data, id, password))
+    Ok(pastaresponse(data, id, password).await)
 }
 
 #[get("/upload/{id}")]
 pub async fn getpasta(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    pastaresponse(data, id, String::from(""))
+    pastaresponse(data, id, String::from("")).await
 }
 
 #[get("/p/{id}")]
 pub async fn getshortpasta(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    pastaresponse(data, id, String::from(""))
+    pastaresponse(data, id, String::from("")).await
 }
 
-fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
+async fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -162,7 +162,7 @@ fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -181,7 +181,7 @@ fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index])).await;
 
         // send redirect if it's a url pasta
         if pastas[index].pasta_type == "url" {
@@ -202,7 +202,7 @@ fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse
             pastas[index].last_read = timenow;
 
             // save the updated read count
-            update(Some(&pastas), Some(&pastas[index]));
+            update(Some(&pastas), Some(&pastas[index])).await;
 
             return response;
         // send error if we're trying to open a non-url pasta as a redirect
@@ -221,12 +221,12 @@ fn urlresponse(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse
 
 #[get("/url/{id}")]
 pub async fn redirecturl(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    urlresponse(data, id)
+    urlresponse(data, id).await
 }
 
 #[get("/u/{id}")]
 pub async fn shortredirecturl(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    urlresponse(data, id)
+    urlresponse(data, id).await
 }
 
 #[get("/raw/{id}")]
@@ -235,7 +235,7 @@ pub async fn getrawpasta(
     id: web::Path<String>,
 ) -> Result<HttpResponse, Error> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -244,7 +244,7 @@ pub async fn getrawpasta(
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -271,7 +271,7 @@ pub async fn getrawpasta(
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index])).await;
 
         // get current unix time in seconds
         let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -308,7 +308,7 @@ pub async fn postrawpasta(
     let password = auth::password_from_multipart(payload).await?;
 
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -317,7 +317,7 @@ pub async fn postrawpasta(
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -344,7 +344,7 @@ pub async fn postrawpasta(
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index])).await;
 
         let original_content = pastas[index].content.to_owned();
 
@@ -378,7 +378,7 @@ pub async fn postrawpasta(
         pastas[index].last_read = timenow;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index])).await;
 
         // send raw content of pasta
         let response = Ok(HttpResponse::NotFound()

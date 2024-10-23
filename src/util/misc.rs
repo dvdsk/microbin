@@ -2,16 +2,15 @@ use crate::args::ARGS;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{new_magic_crypt, MagicCryptTrait};
 use qrcode_generator::QrCodeEcc;
-use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::fs;
 
 use crate::Pasta;
 
 use super::db::delete;
 
-pub fn remove_expired(pastas: &mut Vec<Pasta>) {
+pub async fn remove_expired(pastas: &mut Vec<Pasta>) {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -21,50 +20,65 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
         }
     } as i64;
 
-    pastas.retain(|p| {
-        // keep if:
-        //  expiration is `never` or not reached
-        //  AND
-        //  read count is less than burn limit, or no limit set
-        //  AND
-        //  has been read in the last N days where N is the arg --gc-days OR N is 0 (no GC)
-        if (p.expiration == 0 || p.expiration > timenow)
-            && (p.read_count < p.burn_after_reads || p.burn_after_reads == 0)
-            && (p.last_read_days_ago() < ARGS.gc_days || ARGS.gc_days == 0)
+    // TODO these not set things should really use
+    // Option instead of comparing to zero.
+    let to_remove: Vec<usize> = pastas
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| {
+            !(p.expiration == 0 || p.expiration > timenow)
+                && (p.read_count < p.burn_after_reads || p.burn_after_reads == 0)
+                && (p.last_read_days_ago() < ARGS.gc_days || ARGS.gc_days == 0)
+        })
+        .map(|(index, _)| index)
+        .collect();
+
+    // TODO feed all the pastas that need to be removed in bulk to the
+    // database
+    for pasta_idx in to_remove.into_iter().rev() {
+        let removed = pastas.swap_remove(pasta_idx);
+
+        // TODO database should be an object preferable a trait object
+        // implementing some unified interface.
+        // TODO database should be the single source of truth and replace
+        // the pastas vector
+
+        // remove from database
+        delete(None, Some(removed.id)).await;
+
+        let Some(ref pasta_file) = removed.file else {
+            continue;
+        };
+
+        // TODO all of this should probably be a member function of
+        // `PastaFile`. Though `id_as_animals` could make that cumbersome
+        // it occurs multiple times throughout microbin. So make sure
+        // to replace it everywhere. At the very least the path generation for
+        // attachments (files) and dirs should be deduplicated
+        if fs::remove_file(format!(
+            "{}/attachments/{}/{}",
+            ARGS.data_dir,
+            removed.id_as_animals(),
+            pasta_file.name()
+        ))
+        .await
+        .is_err()
         {
-            // keep
-            true
-        } else {
-            // remove from database
-            delete(None, Some(p.id));
-
-            // remove the file itself
-            if let Some(file) = &p.file {
-                if fs::remove_file(format!(
-                    "{}/attachments/{}/{}",
-                    ARGS.data_dir,
-                    p.id_as_animals(),
-                    file.name()
-                ))
-                .is_err()
-                {
-                    log::error!("Failed to delete file {}!", file.name())
-                }
-
-                // and remove the containing directory
-                if fs::remove_dir(format!(
-                    "{}/attachments/{}/",
-                    ARGS.data_dir,
-                    p.id_as_animals()
-                ))
-                .is_err()
-                {
-                    log::error!("Failed to delete directory {}!", file.name())
-                }
-            }
-            false
+            log::error!("Failed to delete file {}!", pasta_file.name())
         }
-    });
+
+        // and remove the containing directory
+        if fs::remove_dir(format!(
+            "{}/attachments/{}/",
+            ARGS.data_dir,
+            removed.id_as_animals()
+        ))
+        .await
+        .is_err()
+        {
+            log::error!("Failed to delete directory {}!", pasta_file.name())
+        }
+    }
 }
 
 pub fn string_to_qr_svg(str: &str) -> String {
@@ -97,15 +111,15 @@ pub fn decrypt(text_str: &str, key_str: &str) -> Result<String, magic_crypt::Mag
     mc.decrypt_base64_to_string(text_str)
 }
 
-pub fn encrypt_file(
+pub async fn encrypt_file(
     passphrase: &str,
     input_file_path: &str,
+    // TODO use something like color-eyre (my personal favorite) or anyhow
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Read the input file into memory
-    let file = File::open(input_file_path).expect("Tried to encrypt non-existent file");
-    let mut reader = BufReader::new(file);
-    let mut input_data = Vec::new();
-    reader.read_to_end(&mut input_data)?;
+    let input_data = fs::read(input_file_path)
+        .await
+        .expect("Tried to encrypt non-existent file");
 
     // Create a MagicCrypt instance with the given passphrase
     let mc = new_magic_crypt!(passphrase, 256);
@@ -113,29 +127,24 @@ pub fn encrypt_file(
     // Encrypt the input data
     let ciphertext = mc.encrypt_bytes_to_bytes(&input_data[..]);
 
-    // Write the encrypted data to a new file with the .enc extension
-    let mut f = File::create(
-        Path::new(input_file_path)
-            .with_file_name("data")
-            .with_extension("enc"),
-    )?;
-    f.write_all(ciphertext.as_slice())?;
+    // Write the encrypted data to a new file with the `.enc` extension
+    let path = Path::new(input_file_path)
+        .with_file_name("data")
+        .with_extension("enc");
+    fs::write(path, &ciphertext).await?;
 
     // Delete the original input file
-    // input_file.seek(SeekFrom::Start(0))?;
-    fs::remove_file(input_file_path)?;
+    fs::remove_file(input_file_path).await?;
 
     Ok(())
 }
 
-pub fn decrypt_file(
+pub async fn decrypt_file(
     passphrase: &str,
-    input_file: &File,
+    input_file_path: &str,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     // Read the input file into memory
-    let mut reader = BufReader::new(input_file);
-    let mut ciphertext = Vec::new();
-    reader.read_to_end(&mut ciphertext)?;
+    let ciphertext = fs::read(input_file_path).await?;
 
     // Create a MagicCrypt instance with the given passphrase
     let mc = new_magic_crypt!(passphrase, 256);

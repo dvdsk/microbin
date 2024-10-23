@@ -1,10 +1,10 @@
-use std::fs::File;
 use std::io;
-use std::io::{BufReader, BufWriter};
 use std::path::Path;
-use std::sync::Once;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::fs::{self, File};
 
 use serde_json::Value;
+use tokio::io::AsyncWriteExt;
 
 use crate::Pasta;
 
@@ -12,38 +12,41 @@ fn database_path() -> &'static Path {
     Path::new("pasta_data/database.json")
 }
 
-pub fn read_all() -> Vec<Pasta> {
-    load_from_file(database_path()).expect("Failed to load pastas from JSON")
+pub async fn read_all() -> Vec<Pasta> {
+    load_from_file(database_path())
+        .await
+        .expect("Failed to load pastas from JSON")
 }
 
-pub fn update_all(pastas: &Vec<Pasta>) {
-    save_to_file(database_path(), pastas);
+pub async fn update_all(pastas: &Vec<Pasta>) {
+    save_to_file(database_path(), pastas).await;
 }
 
-fn save_to_file(path: &Path, pasta_data: &Vec<Pasta>) {
+async fn save_to_file(path: &Path, pasta_data: &Vec<Pasta>) {
     // This uses a two stage write. First we write to a new file, if this fails
     // only the new pasta's are lost. Then we replace the current database with
     // the new file. This either succeeds or fails. The database is never left
     // in an undefined state.
     let tmp_file_path = path.with_extension(".tmp");
-    let tmp_file = File::create(&tmp_file_path).expect(&format!(
+    let mut tmp_file = File::create(&tmp_file_path).await.expect(&format!(
         "failed to create temporary database file for writing. path: {}",
         tmp_file_path.display()
     ));
 
-    let writer = BufWriter::new(tmp_file);
-    serde_json::to_writer(writer, &pasta_data)
-        .expect("Should be able to write out data to database file");
-    std::fs::rename(tmp_file_path, path).expect("Could not update database");
+    let encoded =
+        serde_json::to_vec(&pasta_data).expect("Should be able to write out data to database file");
+    // TODO report this error, actually return errors from all functions
+    // and nicely report them in the caller instead of sprinkling
+    // log::error everywhere.
+    tmp_file.write_all(&encoded).await.unwrap();
+    fs::rename(tmp_file_path, path)
+        .await
+        .expect("Could not update database");
 }
 
-fn migrate(path: &Path) {
-    let Ok(file) = File::open(path) else {
-        return;
-    };
-
-    let reader = BufReader::new(file);
-    let mut partially_deserialized: Value = serde_json::from_reader(reader).unwrap();
+async fn migrate(path: &Path) {
+    let serialized = fs::read(path).await.expect("file should exist");
+    let mut partially_deserialized: Value = serde_json::from_slice(&serialized).unwrap();
     let data = partially_deserialized
         .as_array_mut()
         .expect("should be vec");
@@ -55,34 +58,28 @@ fn migrate(path: &Path) {
     }
     let pasta_data: Vec<Pasta> =
         serde_json::from_value(partially_deserialized).expect("missing fields where added");
-    save_to_file(path, &pasta_data)
+    save_to_file(path, &pasta_data).await
 }
 
-fn load_from_file(path: &Path) -> io::Result<Vec<Pasta>> {
-    static INIT_JSON_DB: Once = Once::new();
-    INIT_JSON_DB.call_once(|| {
-        // lets not migrate every read
-        // read happens before any update therefore
-        // its safe to only migrate here
-        migrate(path);
-    });
+async fn load_from_file(path: &Path) -> io::Result<Vec<Pasta>> {
+    static NOT_YET_MIGRATED: AtomicBool = AtomicBool::new(true);
+    if NOT_YET_MIGRATED.load(Ordering::Relaxed) {
+        migrate(path).await;
+    }
 
-    let file = File::open(path);
-    match file {
-        Ok(file) => {
-            let reader = BufReader::new(file);
-            let data: Vec<Pasta> = match serde_json::from_reader(reader) {
+    match fs::read(path).await {
+        Ok(serialized) => {
+            let data: Vec<Pasta> = match serde_json::from_slice(&serialized) {
                 Ok(t) => t,
-                _ => Vec::new(),
+                Err(e) => panic!("Database file corrupted, deserialize error: {e:?}"),
             };
             Ok(data)
         }
         Err(_) => {
             log::info!("Database file {} not found!", path.display());
-            save_to_file(path, &Vec::<Pasta>::new());
-
+            save_to_file(path, &Vec::<Pasta>::new()).await;
             log::info!("Database file {} created.", path.display());
-            load_from_file(path)
+            Ok(Vec::new())
         }
     }
 }
@@ -117,8 +114,8 @@ mod test {
         pub pasta_type: String,
     }
 
-    #[test]
-    fn test_migration() {
+    #[tokio::test]
+    async fn test_migration() {
         let mut tmpfile = NamedTempFile::new().unwrap();
 
         let old_db = vec![OldPasta {
@@ -144,7 +141,7 @@ mod test {
             .write(&serde_json::to_vec(&old_db).unwrap())
             .unwrap();
 
-        let migrated_db = load_from_file(tmpfile.path()).unwrap();
+        let migrated_db = load_from_file(tmpfile.path()).await.unwrap();
         assert_eq!(migrated_db[0].hide_read_count, false);
     }
 }

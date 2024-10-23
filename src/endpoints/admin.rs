@@ -31,6 +31,10 @@ pub async fn post_admin(
     data: web::Data<AppState>,
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
+    // TODO the webframeworks middleware should really extract & check this for
+    // us then present some kind of enum. I remember actix middleware bing kinda
+    // hard (lots of impl Future required). If thats still the case lets just
+    // move everything to axum.
     let mut username = String::from("");
     let mut password = String::from("");
 
@@ -52,11 +56,20 @@ pub async fn post_admin(
             .finish());
     }
 
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    // TODO should not happen in response to requests but instead on startup and
+    // then once every n-duration. Currently its called in 26! separate functions. 
+    //
+    // Do it in a separate thread. The n can be derived from the pasta list
+    // however then you need to update that in some way if a pasta is added. The
+    // less optimal alternative to just check every 5 seconds is probably
+    // cleaner. Also saves a ton of disk space since things are removed at
+    // expiration time instead of at next request.
+    remove_expired(&mut pastas).await;
 
     // sort pastas in reverse-chronological order of creation time
+    // TODO just store them in a tree, then they are always sorted correctly
     pastas.sort_by(|a, b| b.created.cmp(&a.created));
 
     // todo status report more sophisticated

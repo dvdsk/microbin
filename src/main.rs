@@ -1,5 +1,3 @@
-extern crate core;
-
 use crate::args::ARGS;
 use crate::endpoints::{
     admin, auth_admin, auth_upload, create, edit, errors, file, guide, list,
@@ -12,11 +10,10 @@ use actix_web::middleware::Condition;
 use actix_web::{middleware, web, App, HttpServer};
 use actix_web_httpauth::middleware::HttpAuthentication;
 use chrono::Local;
-use env_logger::Builder;
 use log::LevelFilter;
-use std::fs;
+use tokio::fs;
 use std::io::Write;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 pub mod args;
 pub mod pasta;
@@ -29,11 +26,11 @@ pub mod util {
     #[cfg(feature = "default")]
     pub mod db_sqlite;
     pub mod hashids;
+    pub mod http_client;
     pub mod misc;
     pub mod syntaxhighlighter;
     pub mod telemetry;
     pub mod version;
-    pub mod http_client;
 }
 
 pub mod endpoints {
@@ -56,9 +53,9 @@ pub struct AppState {
     pub pastas: Mutex<Vec<Pasta>>,
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
-    Builder::new()
+    env_logger::Builder::new()
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -77,7 +74,7 @@ async fn main() -> std::io::Result<()> {
         ARGS.port.to_string()
     );
 
-    match fs::create_dir_all(format!("{}/public", ARGS.data_dir)) {
+    match fs::create_dir_all(format!("{}/public", ARGS.data_dir)).await {
         Ok(dir) => dir,
         Err(error) => {
             log::error!(
@@ -93,7 +90,7 @@ async fn main() -> std::io::Result<()> {
     };
 
     let data = web::Data::new(AppState {
-        pastas: Mutex::new(read_all()),
+        pastas: Mutex::new(read_all().await),
     });
 
     if !ARGS.disable_telemetry {
@@ -151,7 +148,6 @@ async fn main() -> std::io::Result<()> {
             ))
     })
     .bind((ARGS.bind, ARGS.port))?
-    .workers(ARGS.threads as usize)
     .run()
     .await
 }

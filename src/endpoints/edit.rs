@@ -21,7 +21,7 @@ struct EditTemplate<'a> {
 
 #[get("/edit/{id}")]
 pub async fn get_edit(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -29,7 +29,7 @@ pub async fn get_edit(data: web::Data<AppState>, id: web::Path<String>) -> HttpR
         to_u64(&id.into_inner()).unwrap_or(0)
     };
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     for pasta in pastas.iter() {
         if pasta.id == id {
@@ -71,7 +71,7 @@ pub async fn get_edit_with_status(
     data: web::Data<AppState>,
     param: web::Path<(String, String)>,
 ) -> HttpResponse {
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let (id, status) = param.into_inner();
 
@@ -81,7 +81,7 @@ pub async fn get_edit_with_status(
         to_u64(&id).unwrap_or(0)
     };
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
@@ -125,7 +125,7 @@ pub async fn post_edit_private(
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -144,7 +144,7 @@ pub async fn post_edit_private(
     }
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -168,7 +168,7 @@ pub async fn post_edit_private(
                     .content
                     .replace_range(.., res.unwrap().as_str());
                 // save pasta in database
-                update(Some(&pastas), Some(&pastas[index]));
+                update(Some(&pastas), Some(&pastas[index])).await;
             } else {
                 return Ok(HttpResponse::Found()
                     .append_header((
@@ -213,7 +213,7 @@ pub async fn post_submit_edit_private(
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -238,7 +238,7 @@ pub async fn post_submit_edit_private(
     }
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -273,7 +273,7 @@ pub async fn post_submit_edit_private(
                     .content
                     .replace_range(.., &encrypt(&new_content, &password));
                 // save pasta in database
-                update(Some(&pastas), Some(&pastas[index]));
+                update(Some(&pastas), Some(&pastas[index])).await;
             } else {
                 return Ok(HttpResponse::Found()
                     .append_header((
@@ -312,9 +312,9 @@ pub async fn post_edit(
         to_u64(&id.into_inner()).unwrap_or(0)
     };
 
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock().await;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas).await;
 
     let mut new_content = String::from("");
     let mut password = String::from("");
@@ -341,7 +341,7 @@ pub async fn post_edit(
                         if res.is_ok() {
                             pastas[i].content.replace_range(.., &new_content);
                             // save pasta in database
-                            update(Some(&pastas), Some(&pastas[i]));
+                            update(Some(&pastas), Some(&pastas[i])).await;
                         } else {
                             return Ok(HttpResponse::Found()
                                 .append_header((
@@ -361,7 +361,7 @@ pub async fn post_edit(
                 } else {
                     pastas[i].content.replace_range(.., &new_content);
                     // save pasta in database
-                    update(Some(&pastas), Some(&pastas[i]));
+                    update(Some(&pastas), Some(&pastas[i])).await;
                 }
 
                 return Ok(HttpResponse::Found()
