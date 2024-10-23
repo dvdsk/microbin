@@ -79,7 +79,7 @@ fn select_all_from_db() -> Vec<Pasta> {
     let pasta_iter = stmt
         .query_map([], |row| {
             Ok(Pasta {
-                id: dbg!(row).get(0)?,
+                id: row.get(0)?,
                 content: row.get(1)?,
                 file: if let (Some(file_name), Some(file_size)) = (row.get(2)?, row.get(3)?) {
                     let file_size: u64 = file_size;
