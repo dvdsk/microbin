@@ -127,10 +127,11 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
 {%- endif %}
 
 <div>
-  {% if args.show_read_stats %} {% if pasta.read_count == 1 %}
-  <p style="font-size: small">Read {{pasta.read_count}} time, last
-    {{pasta.last_read_time_ago_as_string()}}</p>
-  {%- else %}
+  {% if args.show_read_stats && !pasta.hide_read_count %} 
+  	{% if pasta.read_count == 1 %}
+	  <p style="font-size: small">Read one time, last
+		{{pasta.last_read_time_ago_as_string()}}</p>
+	{%- else %}
   <p style="font-size: small">Read {{pasta.read_count}} times, last
     {{pasta.last_read_time_ago_as_string()}}</p>
   {%- endif %} {%- endif %}
