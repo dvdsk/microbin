@@ -1,12 +1,17 @@
 use crate::args::{Args, ARGS};
 use crate::endpoints::errors::ErrorTemplate;
+use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::animalnumbers::to_u64;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{self, remove_expired};
 use crate::AppState;
-use actix_web::{get, web, HttpResponse};
 use askama::Template;
+use axum::extract::{Path, State};
+use axum::response::IntoResponse;
+use axum::routing::get;
+use axum::Router;
+use reqwest::header;
 
 #[derive(Template)]
 #[template(path = "qr.html", escape = "none")]
@@ -16,8 +21,10 @@ struct QRTemplate<'a> {
     args: &'a Args,
 }
 
-#[get("/qr/{id}")]
-pub async fn getqr(data: web::Data<AppState>, id: web::Path<String>) -> HttpResponse {
+pub async fn getqr(
+    State(data): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
@@ -53,20 +60,26 @@ pub async fn getqr(data: web::Data<AppState>, id: web::Path<String>) -> HttpResp
         };
 
         // serve qr code in template
-        return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-            QRTemplate {
-                qr: &svg,
-                pasta: &pastas[index],
-                args: &ARGS,
-            }
-            .render()
-            .unwrap(),
-        );
+        return Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
+            .into_response()
+            .map(|_| {
+                QRTemplate {
+                    qr: &svg,
+                    pasta: &pastas[index],
+                    args: &ARGS,
+                }
+                .render()
+                .unwrap()
+            }));
     }
 
     // otherwise
     // send pasta not found error
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(ErrorTemplate { args: &ARGS }.render().unwrap())
+    Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
+        .into_response()
+        .map(|_| ErrorTemplate { args: &ARGS }.render().unwrap()))
+}
+
+pub fn qr_router() -> Router<AppState> {
+    Router::new().route("/qr/{id}", get(getqr))
 }

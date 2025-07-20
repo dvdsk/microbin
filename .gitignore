@@ -13,3 +13,7 @@ pasta_data/*
 microbin_data/*
 *.env
 **/**/microbin-data
+
+
+# Ignore JetBrains IDEs project files
+.idea

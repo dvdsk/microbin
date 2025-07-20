@@ -1,51 +1,59 @@
+use crate::args::Args;
+use crate::error_handling::AppError;
 use crate::pasta::PastaFile;
 use crate::util::animalnumbers::to_animal_names;
 use crate::util::db::insert;
 use crate::util::hashids::to_hashids;
 use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
 use crate::{AppState, Pasta, ARGS};
-use actix_multipart::Multipart;
-use actix_web::error::ErrorBadRequest;
-use actix_web::{get, web, Error, HttpResponse, Responder};
 use askama::Template;
+use axum::extract::{Multipart, Path, State};
+use axum::http::Response;
+use axum::response::IntoResponse;
+use axum::routing::{get, post};
+use axum::Router;
 use bytesize::ByteSize;
 use futures::TryStreamExt;
 use log::warn;
-use rand::Rng;
-use std::io::Write;
+use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::io::AsyncWriteExt;
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate<'a> {
-    args: &'a ARGS,
+    args: &'a LazyLock<Args>,
     status: String,
 }
 
-#[get("/")]
-pub async fn index() -> impl Responder {
-    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        IndexTemplate {
-            args: &ARGS,
-            status: String::from(""),
-        }
-        .render()
-        .unwrap(),
-    )
+pub async fn index() -> impl IntoResponse {
+    let index_html = IndexTemplate {
+        args: &ARGS,
+        status: String::from(""),
+    }
+    .render()
+    .unwrap();
+
+    Response::builder()
+        .status(200)
+        .header("content-type", "text/html; charset=utf-8")
+        .body(index_html)
+        .unwrap()
 }
 
-#[get("/{status}")]
-pub async fn index_with_status(param: web::Path<String>) -> HttpResponse {
-    let status = param.into_inner();
+pub async fn index_with_status(Path(status): Path<String>) -> impl IntoResponse {
+    let index_with_status = IndexTemplate {
+        args: &ARGS,
+        status,
+    }
+    .render()
+    .unwrap();
 
-    return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        IndexTemplate {
-            args: &ARGS,
-            status,
-        }
-        .render()
-        .unwrap(),
-    );
+    Response::builder()
+        .status(200)
+        .header("content-type", "text/html; charset=utf-8")
+        .body(index_with_status)
+        .unwrap()
 }
 
 pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
@@ -70,16 +78,15 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
     }
 }
 
-/// receives a file through http Post on url /upload/a-b-c with a, b and c
+/// Receives a file through http Post on url /upload/a-b-c with a, b and c
 /// different animals. The client sends the post in response to a form.
-// TODO: form field order might need to be changed. In my testing the attachment 
-// data is nestled between password encryption key etc <21-10-24, dvdsk> 
+// TODO: form field order might need to be changed. In my testing the attachment
+// data is nestled between password encryption key etc <21-10-24, dvdsk>
+#[axum::debug_handler]
 pub async fn create(
-    data: web::Data<AppState>,
+    data: State<AppState>,
     mut payload: Multipart,
-) -> Result<HttpResponse, Error> {
-    let mut pastas = data.pastas.lock().unwrap();
-
+) -> Result<Response<String>, AppError> {
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
         Err(_) => {
@@ -89,7 +96,7 @@ pub async fn create(
     } as i64;
 
     let mut new_pasta = Pasta {
-        id: rand::thread_rng().gen::<u16>() as u64,
+        id: rand::random::<u16>() as u64,
         content: String::from(""),
         file: None,
         extension: String::from(""),
@@ -112,7 +119,7 @@ pub async fn create(
     let mut plain_key: String = String::from("");
     let mut uploader_password = String::from("");
 
-    while let Some(mut field) = payload.try_next().await? {
+    while let Some(mut field) = payload.next_field().await? {
         let Some(field_name) = field.name() else {
             continue;
         };
@@ -133,23 +140,10 @@ pub async fn create(
             "privacy" => {
                 while let Some(chunk) = field.try_next().await? {
                     let privacy = std::str::from_utf8(&chunk).unwrap();
-                    new_pasta.private = match privacy {
-                        "public" => false,
-                        _ => true,
-                    };
-                    new_pasta.readonly = match privacy {
-                        "readonly" => true,
-                        _ => false,
-                    };
-                    new_pasta.encrypt_client = match privacy {
-                        "secret" => true,
-                        _ => false,
-                    };
-                    new_pasta.encrypt_server = match privacy {
-                        "private" => true,
-                        "secret" => true,
-                        _ => false,
-                    };
+                    new_pasta.private = !matches!(privacy, "public");
+                    new_pasta.readonly = matches!(privacy, "readonly");
+                    new_pasta.encrypt_client = matches!(privacy, "secret");
+                    new_pasta.encrypt_server = matches!(privacy, "private" | "secret")
                 }
             }
             "plain_key" => {
@@ -224,7 +218,7 @@ pub async fn create(
                     continue;
                 }
 
-                let path = field.content_disposition().and_then(|cd| cd.get_filename());
+                let path = field.file_name();
 
                 let path = match path {
                     Some("") => continue,
@@ -254,7 +248,7 @@ pub async fn create(
                     &file.name()
                 );
 
-                let mut f = web::block(|| std::fs::File::create(filepath)).await??;
+                let mut f = tokio::fs::File::create(filepath).await?;
                 let mut size = 0;
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
@@ -262,9 +256,19 @@ pub async fn create(
                         && size > ARGS.max_file_size_encrypted_mb * 1024 * 1024)
                         || size > ARGS.max_file_size_unencrypted_mb * 1024 * 1024
                     {
-                        return Err(ErrorBadRequest("File exceeded size limit."));
+                        let repsonse = axum::response::Response::builder()
+                            .status(400)
+                            .body(
+                                "File \
+                        exceeded \
+                        size \
+                        limit."
+                                    .to_string(),
+                            )
+                            .unwrap();
+                        return Ok(repsonse);
                     }
-                    f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+                    f.write_all(&chunk).await?;
                 }
 
                 file.size = ByteSize::b(size as u64);
@@ -278,12 +282,20 @@ pub async fn create(
         }
     }
 
-    if ARGS.readonly && ARGS.uploader_password.is_some() {
-        if uploader_password != ARGS.uploader_password.as_ref().unwrap().to_owned() {
-            return Ok(HttpResponse::Found()
-                .append_header(("Location", format!("{}/incorrect", ARGS.public_path_as_str())))
-                .finish());
-        }
+    let res = axum::response::Response::builder()
+        .status(302)
+        .header(
+            "Location",
+            format!("{}/incorrect", ARGS.public_path_as_str()),
+        )
+        .body("".to_string())
+        .unwrap();
+
+    if ARGS.readonly
+        && ARGS.uploader_password.is_some()
+        && uploader_password != *ARGS.uploader_password.as_ref().unwrap()
+    {
+        return Ok(res);
     }
 
     let id = new_pasta.id;
@@ -315,12 +327,15 @@ pub async fn create(
     }
 
     let encrypt_server = new_pasta.encrypt_server;
+    {
+        let mut pastas = data.pastas.lock().unwrap();
 
-    pastas.push(new_pasta);
+        pastas.push(new_pasta);
 
-    for (_, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            insert(Some(&pastas), Some(pasta));
+        for pasta in pastas.iter() {
+            if pasta.id == id {
+                insert(Some(&pastas), Some(pasta));
+            }
         }
     }
 
@@ -331,15 +346,27 @@ pub async fn create(
     };
 
     if encrypt_server {
-        Ok(HttpResponse::Found()
-            .append_header(("Location", format!("/auth/{}/success", slug)))
-            .finish())
+        Ok(Response::builder()
+            .status(302)
+            .header("Location", format!("/auth/{slug}/success"))
+            .body("".to_string())
+            .unwrap())
     } else {
-        Ok(HttpResponse::Found()
-            .append_header((
+        Ok(Response::builder()
+            .status(302)
+            .header(
                 "Location",
                 format!("{}/upload/{}", ARGS.public_path_as_str(), slug),
-            ))
-            .finish())
+            )
+            .body("".to_string())
+            .unwrap())
     }
+}
+
+pub fn create_routes() -> Router<AppState> {
+    Router::new()
+        .route("/", get(index))
+        .route("/{status}", get(index_with_status))
+        .route("/create", post(create))
+        .route("/create/{status}", post(create))
 }

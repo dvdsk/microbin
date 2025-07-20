@@ -1,24 +1,34 @@
 extern crate core;
 
 use crate::args::ARGS;
-use crate::endpoints::{
-    admin, auth_admin, auth_upload, create, edit, errors, file, guide, list,
-    pasta as pasta_endpoint, qr, remove, static_resources,
-};
+use crate::endpoints::admin::admin_router;
+use crate::endpoints::auth_admin::auth_admin_router;
+use crate::endpoints::create::create_routes;
+use crate::endpoints::edit::edit_router;
+use crate::endpoints::errors::not_found;
+use crate::endpoints::file::files_router;
+use crate::endpoints::guide::guide_router;
+use crate::endpoints::list::list_router;
+use crate::endpoints::pasta::pasta_routes;
+use crate::endpoints::qr::qr_router;
+use crate::endpoints::remove::remove_router;
+use crate::endpoints::static_resources;
 use crate::pasta::Pasta;
+use crate::static_resources::static_resource_router;
+use crate::util::auth::auth_validator;
 use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
-use actix_web::middleware::Condition;
-use actix_web::{middleware, web, App, HttpServer};
-use actix_web_httpauth::middleware::HttpAuthentication;
+use axum::{middleware, Router};
 use chrono::Local;
 use env_logger::Builder;
 use log::LevelFilter;
 use std::fs;
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use tower_http::normalize_path::NormalizePathLayer;
 
 pub mod args;
+mod error_handling;
 pub mod pasta;
 
 pub mod util {
@@ -29,11 +39,11 @@ pub mod util {
     #[cfg(feature = "default")]
     pub mod db_sqlite;
     pub mod hashids;
+    pub mod http_client;
     pub mod misc;
     pub mod syntaxhighlighter;
     pub mod telemetry;
     pub mod version;
-    pub mod http_client;
 }
 
 pub mod endpoints {
@@ -52,11 +62,12 @@ pub mod endpoints {
     pub mod static_resources;
 }
 
+#[derive(Clone)]
 pub struct AppState {
-    pub pastas: Mutex<Vec<Pasta>>,
+    pub pastas: Arc<Mutex<Vec<Pasta>>>,
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
     Builder::new()
         .format(|buf, record| {
@@ -92,66 +103,39 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let data = web::Data::new(AppState {
-        pastas: Mutex::new(read_all()),
-    });
+    let app_state = AppState {
+        pastas: Arc::new(Mutex::new(read_all())),
+    };
+
+    let mut router = Router::new()
+        .merge(create_routes())
+        .merge(admin_router())
+        .merge(edit_router())
+        .merge(files_router())
+        .merge(guide_router())
+        .merge(list_router())
+        .merge(pasta_routes())
+        .merge(qr_router())
+        .merge(remove_router())
+        .merge(static_resource_router())
+        .merge(auth_admin_router())
+        .fallback(not_found)
+        .with_state(app_state);
 
     if !ARGS.disable_telemetry {
         start_telemetry_thread();
     }
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(data.clone())
-            .wrap(middleware::NormalizePath::trim())
-            .service(create::index)
-            .service(guide::guide)
-            .service(auth_admin::auth_admin)
-            .service(auth_upload::auth_file_with_status)
-            .service(auth_admin::auth_admin_with_status)
-            .service(auth_upload::auth_upload_with_status)
-            .service(auth_upload::auth_raw_pasta_with_status)
-            .service(auth_upload::auth_edit_private_with_status)
-            .service(auth_upload::auth_remove_private_with_status)
-            .service(auth_upload::auth_file)
-            .service(auth_upload::auth_upload)
-            .service(auth_upload::auth_raw_pasta)
-            .service(auth_upload::auth_edit_private)
-            .service(auth_upload::auth_remove_private)
-            .service(pasta_endpoint::getpasta)
-            .service(pasta_endpoint::postpasta)
-            .service(pasta_endpoint::getshortpasta)
-            .service(pasta_endpoint::postshortpasta)
-            .service(pasta_endpoint::getrawpasta)
-            .service(pasta_endpoint::postrawpasta)
-            .service(pasta_endpoint::redirecturl)
-            .service(pasta_endpoint::shortredirecturl)
-            .service(edit::get_edit)
-            .service(edit::get_edit_with_status)
-            .service(edit::post_edit)
-            .service(edit::post_edit_private)
-            .service(edit::post_submit_edit_private)
-            .service(admin::get_admin)
-            .service(admin::post_admin)
-            .service(static_resources::static_resources)
-            .service(qr::getqr)
-            .service(file::get_file)
-            .service(file::post_secure_file)
-            .service(web::resource("/upload").route(web::post().to(create::create)))
-            .default_service(web::route().to(errors::not_found))
-            .wrap(middleware::Logger::default())
-            .service(remove::remove)
-            .service(remove::post_remove)
-            .service(list::list)
-            .service(create::index_with_status)
-            .wrap(Condition::new(
-                ARGS.auth_basic_username.is_some()
-                    && ARGS.auth_basic_username.as_ref().unwrap().trim() != "",
-                HttpAuthentication::basic(util::auth::auth_validator),
-            ))
-    })
-    .bind((ARGS.bind, ARGS.port))?
-    .workers(ARGS.threads as usize)
-    .run()
-    .await
+    if ARGS.auth_basic_username.is_some() && ARGS.auth_basic_username.as_ref().unwrap().trim() != ""
+    {
+        log::info!("Basic authentication is enabled.");
+        router = router.layer(middleware::from_fn(auth_validator));
+    }
+
+    let app = router.layer(NormalizePathLayer::trim_trailing_slash());
+
+    let tcp = tokio::net::TcpListener::bind((ARGS.bind, ARGS.port)).await?;
+
+    axum::serve(tcp, app).await.unwrap();
+    Ok(())
 }

@@ -1,14 +1,12 @@
 use clap::Parser;
-use lazy_static::lazy_static;
 use serde::Serialize;
 use std::convert::Infallible;
 use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref ARGS: Args = Args::parse();
-}
+pub static ARGS: LazyLock<Args> = LazyLock::new(|| Args::parse());
 
 #[derive(Parser, Debug, Clone, Serialize)]
 #[clap(author, version, about, long_about = None)]

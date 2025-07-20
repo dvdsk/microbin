@@ -10,7 +10,7 @@ use crate::util::animalnumbers::to_animal_names;
 use crate::util::hashids::to_hashids;
 use crate::util::syntaxhighlighter::html_highlight;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Eq, Clone)]
 pub struct PastaFile {
     pub name: String,
     pub size: ByteSize,
@@ -53,7 +53,7 @@ impl PastaFile {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Pasta {
     pub id: u64,
     pub content: String,
@@ -89,13 +89,13 @@ impl Pasta {
 
     pub fn total_size_as_string(&self) -> String {
         let total_size_bytes = if self.has_file() {
-            self.file.as_ref().unwrap().size.as_u64() as usize + self.content.as_bytes().len()
+            self.file.as_ref().unwrap().size.as_u64() as usize + self.content.len()
         } else {
-            self.content.as_bytes().len()
+            self.content.len()
         };
 
         if total_size_bytes < 1024 {
-            format!("{} B", total_size_bytes)
+            format!("{total_size_bytes} B")
         } else if total_size_bytes < 1024 * 1024 {
             format!("{} KB", total_size_bytes / 1024)
         } else if total_size_bytes < 1024 * 1024 * 1024 {
@@ -106,31 +106,15 @@ impl Pasta {
     }
 
     pub fn file_embeddable(&self) -> bool {
-        return self.has_file()
+        self.has_file()
             && self.file.as_ref().unwrap().embeddable()
-            && !(self.encrypt_server || self.encrypt_client);
+            && !(self.encrypt_server || self.encrypt_client)
     }
 
     pub fn created_as_string(&self) -> String {
-        Local.timestamp_opt(self.created, 0).map(|date| {
-            format!(
-                "{:02}-{:02} {:02}:{:02}",
-                date.month(),
-                date.day(),
-                date.hour(),
-                date.minute(),
-            )
-        }).earliest().unwrap_or_else(|| {
-            log::error!("Failed to process created date");
-            String::from("Unknow")
-        })
-    }
-
-    pub fn expiration_as_string(&self) -> String {
-        if self.expiration == 0 {
-            String::from("Never")
-        } else {
-            Local.timestamp_opt(self.expiration, 0).map(|date| {
+        Local
+            .timestamp_opt(self.created, 0)
+            .map(|date| {
                 format!(
                     "{:02}-{:02} {:02}:{:02}",
                     date.month(),
@@ -138,10 +122,34 @@ impl Pasta {
                     date.hour(),
                     date.minute(),
                 )
-            }).earliest().unwrap_or_else(|| {
-                log::error!("Failed to process expiration");
-                String::from("Never")
             })
+            .earliest()
+            .unwrap_or_else(|| {
+                log::error!("Failed to process created date");
+                String::from("Unknow")
+            })
+    }
+
+    pub fn expiration_as_string(&self) -> String {
+        if self.expiration == 0 {
+            String::from("Never")
+        } else {
+            Local
+                .timestamp_opt(self.expiration, 0)
+                .map(|date| {
+                    format!(
+                        "{:02}-{:02} {:02}:{:02}",
+                        date.month(),
+                        date.day(),
+                        date.hour(),
+                        date.minute(),
+                    )
+                })
+                .earliest()
+                .unwrap_or_else(|| {
+                    log::error!("Failed to process expiration");
+                    String::from("Never")
+                })
         }
     }
 
@@ -158,25 +166,25 @@ impl Pasta {
         // get seconds since last read and convert it to days
         let days = ((timenow - self.last_read) / 86400) as u16;
         if days > 1 {
-            return format!("{} days ago", days);
+            return format!("{days} days ago");
         };
 
         // it's less than 1 day, let's do hours then
         let hours = ((timenow - self.last_read) / 3600) as u16;
         if hours > 1 {
-            return format!("{} hours ago", hours);
+            return format!("{hours} hours ago");
         };
 
         // it's less than 1 hour, let's do minutes then
         let minutes = ((timenow - self.last_read) / 60) as u16;
         if minutes > 1 {
-            return format!("{} minutes ago", minutes);
+            return format!("{minutes} minutes ago");
         };
 
         // it's less than 1 minute, let's do seconds then
         let seconds = (timenow - self.last_read) as u16;
         if seconds > 1 {
-            return format!("{} seconds ago", seconds);
+            return format!("{seconds} seconds ago");
         };
 
         // it's less than 1 second?????
@@ -196,25 +204,25 @@ impl Pasta {
         // get seconds since last read and convert it to days
         let days = ((timenow - self.last_read) / 86400) as u16;
         if days > 1 {
-            return format!("{} d ago", days);
+            return format!("{days} d ago");
         };
 
         // it's less than 1 day, let's do hours then
         let hours = ((timenow - self.last_read) / 3600) as u16;
         if hours > 1 {
-            return format!("{} h ago", hours);
+            return format!("{hours} h ago");
         };
 
         // it's less than 1 hour, let's do minutes then
         let minutes = ((timenow - self.last_read) / 60) as u16;
         if minutes > 1 {
-            return format!("{} m ago", minutes);
+            return format!("{minutes} m ago");
         };
 
         // it's less than 1 minute, let's do seconds then
         let seconds = (timenow - self.last_read) as u16;
         if seconds > 1 {
-            return format!("{} s ago", seconds);
+            return format!("{seconds} s ago");
         };
 
         // it's less than 1 second?????

@@ -9,7 +9,7 @@ pub fn read_all() -> Vec<Pasta> {
     static INIT_SQLITE: Once = Once::new();
     INIT_SQLITE.call_once(|| {
         // lets not migrate every read
-        // read happens before any update therefore 
+        // read happens before any update therefore
         // its safe to only migrate here
         create_table();
         migrate();
@@ -61,7 +61,6 @@ ADD hide_read_count INTEGER NOT NULL DEFAULT 0",
 
     if let Err(e) = res {
         if e.to_string().contains("duplicate column name:") {
-            return;
         } else {
             panic!("error while migrating sqlite table: {e}")
         }
@@ -79,11 +78,14 @@ fn select_all_from_db() -> Vec<Pasta> {
     let pasta_iter = stmt
         .query_map([], |row| {
             Ok(Pasta {
-                id: row.get(0)?,
-                content: row.get(1)?,
-                file: if let (Some(file_name), Some(file_size)) = (row.get(2)?, row.get(3)?) {
+                id: row.get::<usize, u64>(0)?,
+                content: row.get::<usize, String>(1)?,
+                file: if let (Some(file_name), Some(file_size)) = (
+                    row.get::<usize, Option<String>>(2)?,
+                    row.get::<usize, Option<u64>>(3)?,
+                ) {
                     let file_size: u64 = file_size;
-                    if file_name != "" && file_size != 0 {
+                    if !file_name.is_empty() && file_size != 0 {
                         Some(PastaFile {
                             name: file_name,
                             size: ByteSize::b(file_size),

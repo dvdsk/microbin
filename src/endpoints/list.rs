@@ -1,10 +1,11 @@
-use actix_web::{get, web, HttpResponse};
-use askama::Template;
-
 use crate::args::{Args, ARGS};
 use crate::pasta::Pasta;
 use crate::util::misc::remove_expired;
 use crate::AppState;
+use askama::Template;
+use axum::extract::State;
+use axum::response::IntoResponse;
+use reqwest::{header, StatusCode};
 
 #[derive(Template)]
 #[template(path = "list.html")]
@@ -13,12 +14,13 @@ struct ListTemplate<'a> {
     args: &'a Args,
 }
 
-#[get("/list")]
-pub async fn list(data: web::Data<AppState>) -> HttpResponse {
+pub async fn list(State(data): State<AppState>) -> impl IntoResponse {
     if ARGS.no_listing {
-        return HttpResponse::Found()
-            .append_header(("Location", format!("{}/", ARGS.public_path_as_str())))
-            .finish();
+        return (
+            StatusCode::FOUND,
+            [(header::LOCATION, format!("{}/", ARGS.public_path_as_str()))],
+            "".to_string(),
+        );
     }
 
     let mut pastas = data.pastas.lock().unwrap();
@@ -28,7 +30,9 @@ pub async fn list(data: web::Data<AppState>) -> HttpResponse {
     // sort pastas in reverse-chronological order of creation time
     pastas.sort_by(|a, b| b.created.cmp(&a.created));
 
-    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
         ListTemplate {
             pastas: &pastas,
             args: &ARGS,
@@ -36,4 +40,8 @@ pub async fn list(data: web::Data<AppState>) -> HttpResponse {
         .render()
         .unwrap(),
     )
+}
+
+pub fn list_router() -> axum::Router<AppState> {
+    axum::Router::new().route("/list", axum::routing::get(list))
 }

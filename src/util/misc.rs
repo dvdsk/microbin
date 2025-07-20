@@ -1,4 +1,7 @@
 use crate::args::ARGS;
+use crate::error_handling::AppError;
+use crate::Pasta;
+use axum::http::StatusCode;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{new_magic_crypt, MagicCryptTrait};
 use qrcode_generator::QrCodeEcc;
@@ -6,8 +9,6 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::Pasta;
 
 use super::db::delete;
 
@@ -128,10 +129,7 @@ pub fn encrypt_file(
     Ok(())
 }
 
-pub fn decrypt_file(
-    passphrase: &str,
-    input_file: &File,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn decrypt_file(passphrase: &str, input_file: &File) -> Result<Vec<u8>, AppError> {
     // Read the input file into memory
     let mut reader = BufReader::new(input_file);
     let mut ciphertext = Vec::new();
@@ -143,7 +141,10 @@ pub fn decrypt_file(
     let res = mc.decrypt_bytes_to_bytes(&ciphertext[..]);
 
     if res.is_err() {
-        return Err("Failed to decrypt file".into());
+        return Err(AppError {
+            code: StatusCode::BAD_REQUEST,
+            message: String::from("Failed to decrypt file!"),
+        });
     }
 
     Ok(res.unwrap())

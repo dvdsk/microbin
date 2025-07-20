@@ -1,12 +1,16 @@
 use crate::args::{Args, ARGS};
+use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::misc::remove_expired;
 use crate::util::version::{fetch_latest_version, Version, CURRENT_VERSION};
 use crate::AppState;
-use actix_multipart::Multipart;
-use actix_web::{get, post, web, Error, HttpResponse};
 use askama::Template;
+use axum::extract::{Multipart, State};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::Router;
 use futures::TryStreamExt;
+use reqwest::{header, StatusCode};
 
 #[derive(Template)]
 #[template(path = "admin.html")]
@@ -19,22 +23,26 @@ struct AdminTemplate<'a> {
     update: &'a Option<Version>,
 }
 
-#[get("/admin")]
-pub async fn get_admin() -> Result<HttpResponse, Error> {
-    return Ok(HttpResponse::Found()
-        .append_header(("Location", format!("{}/auth_admin", ARGS.public_path_as_str())))
-        .finish());
+pub async fn get_admin() -> Result<impl IntoResponse, AppError> {
+    Ok((
+        StatusCode::OK,
+        [(
+            header::LOCATION,
+            format!("{}/auth_admin", ARGS.public_path_as_str()),
+        )],
+        "".to_string(),
+    ))
 }
 
-#[post("/admin")]
+#[axum::debug_handler]
 pub async fn post_admin(
-    data: web::Data<AppState>,
+    State(data): State<AppState>,
     mut payload: Multipart,
-) -> Result<HttpResponse, Error> {
+) -> Result<Response, AppError> {
     let mut username = String::from("");
     let mut password = String::from("");
 
-    while let Some(mut field) = payload.try_next().await? {
+    while let Some(mut field) = payload.next_field().await? {
         if field.name() == Some("username") {
             while let Some(chunk) = field.try_next().await? {
                 username.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
@@ -47,17 +55,26 @@ pub async fn post_admin(
     }
 
     if username != ARGS.auth_admin_username || password != ARGS.auth_admin_password {
-        return Ok(HttpResponse::Found()
-            .append_header(("Location", format!("{}/auth_admin/incorrect", ARGS.public_path_as_str())))
-            .finish());
+        return Ok((
+            StatusCode::FOUND,
+            [(
+                header::LOCATION,
+                format!("{}/auth_admin/incorrect", ARGS.public_path_as_str()),
+            )],
+            "".to_string(),
+        )
+            .into_response());
     }
 
-    let mut pastas = data.pastas.lock().unwrap();
+    let pastas = {
+        let mut pastas = data.pastas.lock().unwrap();
 
-    remove_expired(&mut pastas);
+        remove_expired(&mut pastas);
 
-    // sort pastas in reverse-chronological order of creation time
-    pastas.sort_by(|a, b| b.created.cmp(&a.created));
+        // sort pastas in reverse-chronological order of creation time
+        pastas.sort_by(|a, b| b.created.cmp(&a.created));
+        pastas.to_vec()
+    };
 
     // todo status report more sophisticated
     let mut status = "OK";
@@ -91,7 +108,9 @@ pub async fn post_admin(
         update = None;
     }
 
-    Ok(HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
+    Ok((
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
         AdminTemplate {
             pastas: &pastas,
             args: &ARGS,
@@ -102,5 +121,12 @@ pub async fn post_admin(
         }
         .render()
         .unwrap(),
-    ))
+    )
+        .into_response())
+}
+
+pub fn admin_router() -> Router<AppState> {
+    Router::new()
+        .route("/admin", post(post_admin))
+        .route("/admin", get(get_admin))
 }

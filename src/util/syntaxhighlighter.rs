@@ -25,7 +25,7 @@ pub fn html_highlight(text: &str, extension: &str) -> String {
 
     let mut highlighted_content2: String = String::from("");
     for line in highlighted_content.lines() {
-        highlighted_content2 += &*format!("<code-line>{}</code-line>\n", line);
+        highlighted_content2 += &*format!("<code-line>{line}</code-line>\n");
     }
 
     // Rewrite colours to ones that are compatible with water.css and both light/dark modes
