@@ -70,7 +70,7 @@ pub async fn post_secure_file(
 
                 // Create a response with the decrypted data
                 let response = Response::builder()
-                    .status(200)
+                    .status(StatusCode::OK)
                     .header("Content-Type", content_type)
                     .header(
                         "Content-Disposition",

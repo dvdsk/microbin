@@ -5,6 +5,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use base64::engine::general_purpose;
 use base64::Engine;
+use reqwest::StatusCode;
 
 pub async fn auth_validator(req: Request, next: Next) -> Response {
     let (username, password) = req
@@ -30,7 +31,7 @@ pub async fn auth_validator(req: Request, next: Next) -> Response {
         .unwrap_or((None, None));
     if username.is_none() || password.is_none() {
         return Response::builder()
-            .status(401)
+            .status(StatusCode::UNAUTHORIZED)
             .header("WWW-Authenticate", "Basic realm=\"Restricted Area\"")
             .body("Unauthorized".into())
             .unwrap();
@@ -39,7 +40,7 @@ pub async fn auth_validator(req: Request, next: Next) -> Response {
         || password.unwrap() != ARGS.auth_admin_password
     {
         Response::builder()
-            .status(403)
+            .status(StatusCode::FORBIDDEN)
             .body("Forbidden".into())
             .unwrap()
     } else {

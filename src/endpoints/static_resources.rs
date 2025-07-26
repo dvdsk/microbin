@@ -3,6 +3,7 @@ use axum::extract::Path;
 use axum::http::Response;
 use axum::response::IntoResponse;
 use axum::Router;
+use reqwest::StatusCode;
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
@@ -15,7 +16,7 @@ async fn static_resources(Path(path): Path<String>) -> impl IntoResponse {
     } else {
         println!("Resource not found: {path}");
         Response::builder()
-            .status(404)
+            .status(StatusCode::NOT_FOUND)
             .header("Content-Type", "text/plain")
             .body(axum::body::Body::from("Resource not found"))
             .unwrap()

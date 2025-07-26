@@ -17,6 +17,7 @@ use futures::TryStreamExt;
 use log::warn;
 use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+use reqwest::StatusCode;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Template)]
@@ -35,7 +36,7 @@ pub async fn index() -> impl IntoResponse {
     .unwrap();
 
     Response::builder()
-        .status(200)
+        .status(StatusCode::OK)
         .header("content-type", "text/html; charset=utf-8")
         .body(index_html)
         .unwrap()
@@ -50,7 +51,7 @@ pub async fn index_with_status(Path(status): Path<String>) -> impl IntoResponse 
     .unwrap();
 
     Response::builder()
-        .status(200)
+        .status(StatusCode::OK)
         .header("content-type", "text/html; charset=utf-8")
         .body(index_with_status)
         .unwrap()
@@ -257,7 +258,7 @@ pub async fn create(
                         || size > ARGS.max_file_size_unencrypted_mb * 1024 * 1024
                     {
                         let repsonse = axum::response::Response::builder()
-                            .status(400)
+                            .status(StatusCode::BAD_REQUEST)
                             .body(
                                 "File \
                         exceeded \
@@ -283,7 +284,7 @@ pub async fn create(
     }
 
     let res = axum::response::Response::builder()
-        .status(302)
+        .status(StatusCode::FOUND)
         .header(
             "Location",
             format!("{}/incorrect", ARGS.public_path_as_str()),
@@ -347,13 +348,13 @@ pub async fn create(
 
     if encrypt_server {
         Ok(Response::builder()
-            .status(302)
+            .status(StatusCode::FOUND)
             .header("Location", format!("/auth/{slug}/success"))
             .body("".to_string())
             .unwrap())
     } else {
         Ok(Response::builder()
-            .status(302)
+            .status(StatusCode::FOUND)
             .header(
                 "Location",
                 format!("{}/upload/{}", ARGS.public_path_as_str(), slug),
