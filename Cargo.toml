@@ -52,13 +52,12 @@ bytes = "1.8.0"
 base64 = "0.22.1"
 
 [features]
-default = ["__rustcrypto-tls", "__zstd", "__syntect-fast", "dep:rusqlite"]
+default = ["__rustcrypto-tls", "__syntect-fast", "dep:rusqlite"]
 no-c-deps = ["__rustcrypto-tls", "__syntect-rust"]
 
 __rustcrypto-tls = ["reqwest/rustls-tls-manual-roots-no-provider", "dep:rustls", "dep:rustls-rustcrypto", "webpki-roots"]
 __syntect-fast = ["syntect/default-onig"]
 __syntect-rust = ["syntect/default-fancy"]
-__zstd = []
 
 [profile.release]
 lto = true

@@ -94,7 +94,6 @@ pub async fn remove(State(data): State<AppState>, Path(id): Path<String>) -> imp
     )
 }
 
-#[axum::debug_handler]
 pub async fn post_remove(
     State(data): State<AppState>,
     Path(id): Path<String>,

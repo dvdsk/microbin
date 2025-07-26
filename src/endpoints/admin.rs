@@ -25,7 +25,7 @@ struct AdminTemplate<'a> {
 
 pub async fn get_admin() -> Result<impl IntoResponse, AppError> {
     Ok((
-        StatusCode::OK,
+        StatusCode::FOUND,
         [(
             header::LOCATION,
             format!("{}/auth_admin", ARGS.public_path_as_str()),
@@ -34,7 +34,6 @@ pub async fn get_admin() -> Result<impl IntoResponse, AppError> {
     ))
 }
 
-#[axum::debug_handler]
 pub async fn post_admin(
     State(data): State<AppState>,
     mut payload: Multipart,
@@ -127,6 +126,6 @@ pub async fn post_admin(
 
 pub fn admin_router() -> Router<AppState> {
     Router::new()
-        .route("/admin", post(post_admin))
+        .route("/admin/", post(post_admin))
         .route("/admin", get(get_admin))
 }

@@ -150,7 +150,6 @@ pub async fn get_edit_with_status(
         .into_response())
 }
 
-#[axum::debug_handler]
 pub async fn post_edit_private(
     State(data): State<AppState>,
     Path(id): Path<String>,
@@ -252,7 +251,6 @@ pub async fn post_edit_private(
         .into_response())
 }
 
-#[axum::debug_handler]
 pub async fn post_submit_edit_private(
     State(data): State<AppState>,
     Path(id): Path<String>,

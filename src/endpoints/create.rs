@@ -82,7 +82,6 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
 /// different animals. The client sends the post in response to a form.
 // TODO: form field order might need to be changed. In my testing the attachment
 // data is nestled between password encryption key etc <21-10-24, dvdsk>
-#[axum::debug_handler]
 pub async fn create(
     data: State<AppState>,
     mut payload: Multipart,
@@ -118,6 +117,7 @@ pub async fn create(
     let mut random_key: String = String::from("");
     let mut plain_key: String = String::from("");
     let mut uploader_password = String::from("");
+    log::info!("Creating new pasta...");
 
     while let Some(mut field) = payload.next_field().await? {
         let Some(field_name) = field.name() else {

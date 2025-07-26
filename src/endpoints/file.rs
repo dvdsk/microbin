@@ -13,7 +13,6 @@ use std::fs::File;
 use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
 
-#[axum::debug_handler]
 pub async fn post_secure_file(
     State(data): State<AppState>,
     Path(id): Path<String>,
@@ -86,7 +85,6 @@ pub async fn post_secure_file(
     Ok((StatusCode::NOT_FOUND).into_response())
 }
 
-#[axum::debug_handler]
 pub async fn get_file(
     Path(id): Path<String>,
     State(data): State<AppState>,
