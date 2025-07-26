@@ -288,14 +288,14 @@ pub async fn create(
             "Location",
             format!("{}/incorrect", ARGS.public_path_as_str()),
         )
-        .body("".to_string())
-        .unwrap();
+        .body("".to_string());
 
     if ARGS.readonly
         && ARGS.uploader_password.is_some()
         && uploader_password != *ARGS.uploader_password.as_ref().unwrap()
+        && let Ok(resp) = res
     {
-        return Ok(res);
+        return Ok(resp);
     }
 
     let id = new_pasta.id;
