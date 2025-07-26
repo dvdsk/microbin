@@ -5,19 +5,19 @@ use crate::util::animalnumbers::to_animal_names;
 use crate::util::db::insert;
 use crate::util::hashids::to_hashids;
 use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
-use crate::{AppState, Pasta, ARGS};
+use crate::{ARGS, AppState, Pasta};
 use askama::Template;
+use axum::Router;
 use axum::extract::{Multipart, Path, State};
 use axum::http::Response;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Router;
 use bytesize::ByteSize;
 use futures::TryStreamExt;
 use log::warn;
+use reqwest::StatusCode;
 use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
-use reqwest::StatusCode;
 use tokio::io::AsyncWriteExt;
 
 #[derive(Template)]
@@ -27,34 +27,30 @@ struct IndexTemplate<'a> {
     status: String,
 }
 
-pub async fn index() -> impl IntoResponse {
+pub async fn index() -> Result<impl IntoResponse, AppError> {
     let index_html = IndexTemplate {
         args: &ARGS,
         status: String::from(""),
     }
-    .render()
-    .unwrap();
+    .render()?;
 
-    Response::builder()
+    Ok(Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "text/html; charset=utf-8")
-        .body(index_html)
-        .unwrap()
+        .body(index_html)?)
 }
 
-pub async fn index_with_status(Path(status): Path<String>) -> impl IntoResponse {
+pub async fn index_with_status(Path(status): Path<String>) -> Result<impl IntoResponse, AppError> {
     let index_with_status = IndexTemplate {
         args: &ARGS,
         status,
     }
-    .render()
-    .unwrap();
+    .render()?;
 
-    Response::builder()
+    Ok(Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "text/html; charset=utf-8")
-        .body(index_with_status)
-        .unwrap()
+        .body(index_with_status)?)
 }
 
 pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
@@ -127,20 +123,19 @@ pub async fn create(
         match field_name {
             "uploader_password" => {
                 while let Some(chunk) = field.try_next().await? {
-                    uploader_password
-                        .push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                    uploader_password.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
                 }
                 continue;
             }
             "random_key" => {
                 while let Some(chunk) = field.try_next().await? {
-                    random_key = std::str::from_utf8(&chunk).unwrap().to_string();
+                    random_key = std::str::from_utf8(&chunk)?.to_string();
                 }
                 continue;
             }
             "privacy" => {
                 while let Some(chunk) = field.try_next().await? {
-                    let privacy = std::str::from_utf8(&chunk).unwrap();
+                    let privacy = std::str::from_utf8(&chunk)?;
                     new_pasta.private = !matches!(privacy, "public");
                     new_pasta.readonly = matches!(privacy, "readonly");
                     new_pasta.encrypt_client = matches!(privacy, "secret");
@@ -149,14 +144,13 @@ pub async fn create(
             }
             "plain_key" => {
                 while let Some(chunk) = field.try_next().await? {
-                    plain_key = std::str::from_utf8(&chunk).unwrap().to_string();
+                    plain_key = std::str::from_utf8(&chunk)?.to_string();
                 }
                 continue;
             }
             "encrypted_random_key" => {
                 while let Some(chunk) = field.try_next().await? {
-                    new_pasta.encrypted_key =
-                        Some(std::str::from_utf8(&chunk).unwrap().to_string());
+                    new_pasta.encrypted_key = Some(std::str::from_utf8(&chunk)?.to_string());
                 }
                 continue;
             }
@@ -167,14 +161,14 @@ pub async fn create(
             "expiration" => {
                 while let Some(chunk) = field.try_next().await? {
                     new_pasta.expiration =
-                        expiration_to_timestamp(std::str::from_utf8(&chunk).unwrap(), timenow);
+                        expiration_to_timestamp(std::str::from_utf8(&chunk)?, timenow);
                 }
 
                 continue;
             }
             "burn_after" => {
                 while let Some(chunk) = field.try_next().await? {
-                    new_pasta.burn_after_reads = match std::str::from_utf8(&chunk).unwrap() {
+                    new_pasta.burn_after_reads = match std::str::from_utf8(&chunk)? {
                         // give an extra read because the user will be
                         // redirected to the pasta page automatically
                         "1" => 2,
@@ -195,7 +189,7 @@ pub async fn create(
             "content" => {
                 let mut content = String::from("");
                 while let Some(chunk) = field.try_next().await? {
-                    content.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                    content.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
                 }
                 if !content.is_empty() {
                     new_pasta.content = content;
@@ -210,7 +204,7 @@ pub async fn create(
             }
             "syntax_highlight" => {
                 while let Some(chunk) = field.try_next().await? {
-                    new_pasta.extension = std::str::from_utf8(&chunk).unwrap().to_string();
+                    new_pasta.extension = std::str::from_utf8(&chunk)?.to_string();
                 }
                 continue;
             }
@@ -239,8 +233,7 @@ pub async fn create(
                     "{}/attachments/{}",
                     ARGS.data_dir,
                     &new_pasta.id_as_animals()
-                ))
-                .unwrap();
+                ))?;
 
                 let filepath = format!(
                     "{}/attachments/{}/{}",
@@ -265,8 +258,7 @@ pub async fn create(
                         size \
                         limit."
                                     .to_string(),
-                            )
-                            .unwrap();
+                            )?;
                         return Ok(repsonse);
                     }
                     f.write_all(&chunk).await?;
@@ -292,8 +284,8 @@ pub async fn create(
         .body("".to_string());
 
     if ARGS.readonly
-        && ARGS.uploader_password.is_some()
-        && uploader_password != *ARGS.uploader_password.as_ref().unwrap()
+        && let Some(uploader_password_args) = ARGS.uploader_password.as_ref()
+        && uploader_password != *uploader_password_args
         && let Ok(resp) = res
     {
         return Ok(resp);
@@ -313,12 +305,15 @@ pub async fn create(
         }
     }
 
-    if new_pasta.file.is_some() && new_pasta.encrypt_server && !new_pasta.readonly {
+    if let Some(new_pasta_file) = new_pasta.file.as_ref()
+        && new_pasta.encrypt_server
+        && !new_pasta.readonly
+    {
         let filepath = format!(
             "{}/attachments/{}/{}",
             ARGS.data_dir,
             &new_pasta.id_as_animals(),
-            &new_pasta.file.as_ref().unwrap().name()
+            &new_pasta_file.name()
         );
         if new_pasta.encrypt_client {
             encrypt_file(&random_key, &filepath).expect("Failed to encrypt file with random key")
@@ -329,7 +324,7 @@ pub async fn create(
 
     let encrypt_server = new_pasta.encrypt_server;
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
 
         pastas.push(new_pasta);
 
@@ -350,8 +345,7 @@ pub async fn create(
         Ok(Response::builder()
             .status(StatusCode::FOUND)
             .header("Location", format!("/auth/{slug}/success"))
-            .body("".to_string())
-            .unwrap())
+            .body("".to_string())?)
     } else {
         Ok(Response::builder()
             .status(StatusCode::FOUND)
@@ -359,8 +353,7 @@ pub async fn create(
                 "Location",
                 format!("{}/upload/{}", ARGS.public_path_as_str(), slug),
             )
-            .body("".to_string())
-            .unwrap())
+            .body("".to_string())?)
     }
 }
 

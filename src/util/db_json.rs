@@ -45,7 +45,10 @@ fn migrate(path: &Path) {
     };
 
     let reader = BufReader::new(file);
-    let mut partially_deserialized: Value = serde_json::from_reader(reader).unwrap();
+    let mut partially_deserialized: Value = serde_json::from_reader(reader).expect(
+        "Could not \
+    parse JSON file during migration",
+    );
     let data = partially_deserialized
         .as_array_mut()
         .expect("should be vec");
@@ -118,7 +121,7 @@ mod test {
 
     #[test]
     fn test_migration() {
-        let mut tmpfile = NamedTempFile::new().unwrap();
+        let mut tmpfile = NamedTempFile::new().expect("Failed to create temporary file");
 
         let old_db = vec![OldPasta {
             id: 1,
@@ -140,10 +143,10 @@ mod test {
         }];
 
         tmpfile
-            .write_all(&serde_json::to_vec(&old_db).unwrap())
-            .unwrap();
+            .write_all(&serde_json::to_vec(&old_db).expect("Error serializing old database"))
+            .expect("Error writing old database");
 
-        let migrated_db = load_from_file(tmpfile.path()).unwrap();
+        let migrated_db = load_from_file(tmpfile.path()).expect("Failed to migrate");
         assert!(!migrated_db[0].hide_read_count);
     }
 }

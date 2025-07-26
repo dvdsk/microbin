@@ -1,7 +1,12 @@
 use harsh::Harsh;
 use std::sync::LazyLock;
 
-pub static HARSH: LazyLock<Harsh> = LazyLock::new(|| Harsh::builder().length(6).build().unwrap());
+pub static HARSH: LazyLock<Harsh> = LazyLock::new(|| {
+    Harsh::builder()
+        .length(6)
+        .build()
+        .expect("Harsh couldn't be build")
+});
 
 pub fn to_hashids(number: u64) -> String {
     HARSH.encode(&[number])

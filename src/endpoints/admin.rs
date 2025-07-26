@@ -1,16 +1,16 @@
-use crate::args::{Args, ARGS};
+use crate::AppState;
+use crate::args::{ARGS, Args};
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::misc::remove_expired;
-use crate::util::version::{fetch_latest_version, Version, CURRENT_VERSION};
-use crate::AppState;
+use crate::util::version::{CURRENT_VERSION, Version, fetch_latest_version};
 use askama::Template;
+use axum::Router;
 use axum::extract::{Multipart, State};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::Router;
 use futures::TryStreamExt;
-use reqwest::{header, StatusCode};
+use reqwest::{StatusCode, header};
 
 #[derive(Template)]
 #[template(path = "admin.html")]
@@ -44,11 +44,21 @@ pub async fn post_admin(
     while let Some(mut field) = payload.next_field().await? {
         if field.name() == Some("username") {
             while let Some(chunk) = field.try_next().await? {
-                username.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                username.push_str(
+                    std::str::from_utf8(&chunk)
+                        .map_err(AppError::from)?
+                        .to_string()
+                        .as_str(),
+                );
             }
         } else if field.name() == Some("password") {
             while let Some(chunk) = field.try_next().await? {
-                password.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                password.push_str(
+                    std::str::from_utf8(&chunk)
+                        .map_err(AppError::from)?
+                        .to_string()
+                        .as_str(),
+                );
             }
         }
     }
@@ -66,7 +76,7 @@ pub async fn post_admin(
     }
 
     let pastas = {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
 
         remove_expired(&mut pastas);
 
@@ -93,8 +103,7 @@ pub async fn post_admin(
 
     if !ARGS.disable_update_checking {
         let latest_version_res = fetch_latest_version().await;
-        if latest_version_res.is_ok() {
-            let latest_version = latest_version_res.unwrap();
+        if let Ok(latest_version) = latest_version_res {
             if latest_version.newer_than_current() {
                 update = Some(latest_version);
             } else {
@@ -118,8 +127,7 @@ pub async fn post_admin(
             message: &String::from(message),
             update: &update,
         }
-        .render()
-        .unwrap(),
+        .render()?,
     )
         .into_response())
 }

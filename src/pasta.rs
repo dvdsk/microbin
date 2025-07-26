@@ -88,10 +88,10 @@ impl Pasta {
     }
 
     pub fn total_size_as_string(&self) -> String {
-        let total_size_bytes = if self.has_file() {
-            self.file.as_ref().unwrap().size.as_u64() as usize + self.content.len()
+        let total_size_bytes = if let Some(file) = &self.file {
+            file.size.as_u64() as usize + self.content.len()
         } else {
-            self.content.as_bytes().len()
+            self.content.len()
         };
 
         if total_size_bytes < 1024 {
@@ -106,9 +106,12 @@ impl Pasta {
     }
 
     pub fn file_embeddable(&self) -> bool {
-        self.has_file()
-            && self.file.as_ref().unwrap().embeddable()
-            && !(self.encrypt_server || self.encrypt_client)
+        let first_file_result = match self.file {
+            Some(ref file) => file.embeddable(),
+            None => false,
+        };
+
+        first_file_result && !(self.encrypt_server || self.encrypt_client)
     }
 
     pub fn created_as_string(&self) -> String {

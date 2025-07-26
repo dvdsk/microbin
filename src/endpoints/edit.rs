@@ -5,13 +5,13 @@ use crate::util::animalnumbers::to_u64;
 use crate::util::db::update;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, encrypt, remove_expired};
-use crate::{AppState, Pasta, ARGS};
+use crate::{ARGS, AppState, Pasta};
 use askama::Template;
+use axum::Router;
 use axum::extract::{Multipart, Path, State};
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Router;
 use futures::TryStreamExt;
 
 #[derive(Template)]
@@ -27,7 +27,10 @@ pub async fn get_edit(
     State(data): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = match data.pastas.lock() {
+        Ok(pastas) => Ok(pastas),
+        Err(e) => Err(AppError::from(e)),
+    }?;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -73,7 +76,7 @@ pub async fn get_edit(
                     status: &String::from(""),
                 }
                 .render()
-                .unwrap(),
+                .map_err(AppError::from)?,
             )
                 .into_response());
         }
@@ -82,7 +85,7 @@ pub async fn get_edit(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render().unwrap(),
+        ErrorTemplate { args: &ARGS }.render()?,
     )
         .into_response())
 }
@@ -91,7 +94,7 @@ pub async fn get_edit_with_status(
     State(data): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<axum::response::Response, AppError> {
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -135,8 +138,7 @@ pub async fn get_edit_with_status(
                     status: &status,
                     path: &String::from("edit"),
                 }
-                .render()
-                .unwrap(),
+                .render()?,
             )
                 .into_response());
         }
@@ -145,7 +147,7 @@ pub async fn get_edit_with_status(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render().unwrap(),
+        ErrorTemplate { args: &ARGS }.render()?,
     )
         .into_response())
 }
@@ -168,13 +170,13 @@ pub async fn post_edit_private(
     while let Some(mut field) = payload.next_field().await? {
         if field.name() == Some("password") {
             while let Some(chunk) = field.try_next().await? {
-                password.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                password.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
             }
         }
     }
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -183,7 +185,7 @@ pub async fn post_edit_private(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock().unwrap();
+        let pastas = data.pastas.lock()?;
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
                 index = i;
@@ -194,7 +196,7 @@ pub async fn post_edit_private(
     }
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         if found && !pastas[index].encrypt_client {
             let original_content = pastas[index].content.to_owned();
 
@@ -231,8 +233,7 @@ pub async fn post_edit_private(
                     path: &String::from("submit_edit_private"),
                     status: &String::from(""),
                 }
-                .render()
-                .unwrap(),
+                .render()?,
             );
 
             if pastas[index].content != original_content {
@@ -246,7 +247,7 @@ pub async fn post_edit_private(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render().unwrap(),
+        ErrorTemplate { args: &ARGS }.render()?,
     )
         .into_response())
 }
@@ -268,19 +269,19 @@ pub async fn post_submit_edit_private(
     while let Some(mut field) = payload.next_field().await? {
         if field.name() == Some("content") {
             while let Some(chunk) = field.try_next().await? {
-                new_content.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                new_content.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
             }
         }
         if field.name() == Some("password") {
             while let Some(chunk) = field.try_next().await? {
-                password = std::str::from_utf8(&chunk).unwrap().to_string();
+                password = std::str::from_utf8(&chunk)?.to_string();
             }
         }
     }
 
     {
         // get access to the pasta collection
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -289,7 +290,7 @@ pub async fn post_submit_edit_private(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock().unwrap();
+        let pastas = data.pastas.lock()?;
 
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
@@ -301,11 +302,13 @@ pub async fn post_submit_edit_private(
     }
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
 
         if found && pastas[index].editable && !pastas[index].encrypt_client {
-            if pastas[index].readonly {
-                let res = decrypt(pastas[index].encrypted_key.as_ref().unwrap(), &password);
+            if pastas[index].readonly
+                && let Some(encrypted_key) = pastas[index].encrypted_key.as_ref()
+            {
+                let res = decrypt(encrypted_key, &password);
                 if res.is_ok() {
                     pastas[index]
                         .content
@@ -382,7 +385,7 @@ pub async fn post_edit(
     };
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         remove_expired(&mut pastas);
     }
 
@@ -392,25 +395,27 @@ pub async fn post_edit(
     while let Some(mut field) = payload.next_field().await? {
         if field.name() == Some("content") {
             while let Some(chunk) = field.try_next().await? {
-                new_content.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                new_content.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
             }
         }
         if field.name() == Some("password") {
             while let Some(chunk) = field.try_next().await? {
-                password = std::str::from_utf8(&chunk).unwrap().to_string();
+                password = std::str::from_utf8(&chunk)?.to_string();
             }
         }
     }
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
 
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
                 if pasta.editable && !pasta.encrypt_client {
                     if pastas[i].readonly || pastas[i].encrypt_server {
-                        if password != *"" {
-                            let res = decrypt(pastas[i].encrypted_key.as_ref().unwrap(), &password);
+                        if password != *""
+                            && let Some(encrypted_key) = pastas[i].encrypted_key.as_ref()
+                        {
+                            let res = decrypt(encrypted_key, &password);
                             if res.is_ok() {
                                 pastas[i].content.replace_range(.., &new_content);
                                 // save pasta in database
@@ -471,7 +476,7 @@ pub async fn post_edit(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render().unwrap(),
+        ErrorTemplate { args: &ARGS }.render()?,
     )
         .into_response())
 }

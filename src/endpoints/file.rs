@@ -1,14 +1,14 @@
+use crate::AppState;
 use crate::args::ARGS;
 use crate::error_handling::AppError;
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::remove_expired;
 use crate::util::{animalnumbers::to_u64, misc::decrypt_file};
-use crate::AppState;
 use axum::extract::{Multipart, Path, State};
 use axum::response::{IntoResponse, Response};
-use reqwest::header;
 use reqwest::StatusCode;
+use reqwest::header;
 use std::fs::File;
 use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
@@ -27,7 +27,7 @@ pub async fn post_secure_file(
     };
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -36,7 +36,7 @@ pub async fn post_secure_file(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock().unwrap();
+        let pastas = data.pastas.lock()?;
         // find the index of the pasta in the collection based on u64 id
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
@@ -50,7 +50,7 @@ pub async fn post_secure_file(
     let password = auth::password_from_multipart(payload).await?;
 
     {
-        let pastas = data.pastas.lock().unwrap();
+        let pastas = data.pastas.lock()?;
         if found {
             if let Some(ref pasta_file) = pastas[index].file {
                 let file = File::open(format!(
@@ -76,8 +76,7 @@ pub async fn post_secure_file(
                         "Content-Disposition",
                         format!("attachment; filename=\"{}\"", pasta_file.name()),
                     )
-                    .body(decrypted_data.into())
-                    .unwrap();
+                    .body(decrypted_data.into())?;
                 return Ok(response);
             }
         }
@@ -97,7 +96,7 @@ pub async fn get_file(
 
     {
         // get access to the pasta collection
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -106,7 +105,7 @@ pub async fn get_file(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock().unwrap();
+        let pastas = data.pastas.lock()?;
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id_intern {
                 index = i;
@@ -116,7 +115,7 @@ pub async fn get_file(
         }
     }
 
-    let pastas = { data.pastas.lock().unwrap().clone() };
+    let pastas = { data.pastas.lock()?.clone() };
     if found {
         if let Some(ref pasta_file) = pastas[index].file {
             if pastas[index].encrypt_server {
@@ -154,8 +153,7 @@ pub async fn get_file(
                         .as_ref(),
                 )
                 .header(header::CONTENT_DISPOSITION, &content_disposition)
-                .body(body)
-                .unwrap();
+                .body(body)?;
             // This takes care of streaming/seeking using the Range
             // header in the request.
             return Ok(response.into_response());

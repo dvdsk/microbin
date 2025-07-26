@@ -1,15 +1,16 @@
-use crate::args::{Args, ARGS};
+use crate::AppState;
+use crate::args::{ARGS, Args};
 use crate::endpoints::errors::ErrorTemplate;
+use crate::error_handling::AppError;
 use crate::util::animalnumbers::to_u64;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::remove_expired;
-use crate::AppState;
 use askama::Template;
+use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::Router;
 
 #[derive(Template)]
 #[template(path = "auth_upload.html")]
@@ -25,9 +26,13 @@ struct AuthPasta<'a> {
 pub async fn auth_upload(
     State(data): State<AppState>,
     Path(id): Path<String>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let pastas = data.pastas.lock();
+    let mut pastas = match pastas {
+        Ok(p) => Ok(p),
+        Err(e) => Err(AppError::from(e)),
+    }?;
 
     remove_expired(&mut pastas);
 
@@ -40,7 +45,10 @@ pub async fn auth_upload(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert(
+                "Content-Type",
+                "text/html; charset=utf-8".parse().map_err(AppError::from)?,
+            );
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -49,24 +57,23 @@ pub async fn auth_upload(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("upload"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_upload_with_status(
     State(data): State<AppState>,
     Path((id, status)): Path<(String, String)>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -79,7 +86,7 @@ pub async fn auth_upload_with_status(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -88,24 +95,23 @@ pub async fn auth_upload_with_status(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("upload"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_raw_pasta(
     State(data): State<AppState>,
     Path(id): Path<String>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -118,7 +124,7 @@ pub async fn auth_raw_pasta(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -127,24 +133,23 @@ pub async fn auth_raw_pasta(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("raw"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_raw_pasta_with_status(
     State(data): State<AppState>,
     Path((id, status)): Path<(String, String)>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -157,7 +162,7 @@ pub async fn auth_raw_pasta_with_status(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -166,23 +171,22 @@ pub async fn auth_raw_pasta_with_status(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("raw"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_edit_private(
     State(data): State<AppState>,
     Path(id): Path<String>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -195,7 +199,7 @@ pub async fn auth_edit_private(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -204,24 +208,23 @@ pub async fn auth_edit_private(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("edit_private"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_edit_private_with_status(
     State(data): State<AppState>,
     Path((id, status)): Path<(String, String)>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -234,7 +237,7 @@ pub async fn auth_edit_private_with_status(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -243,20 +246,22 @@ pub async fn auth_edit_private_with_status(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("edit_private"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
-pub async fn auth_file(data: State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
+pub async fn auth_file(
+    data: State<AppState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -269,7 +274,7 @@ pub async fn auth_file(data: State<AppState>, Path(id): Path<String>) -> impl In
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -278,24 +283,23 @@ pub async fn auth_file(data: State<AppState>, Path(id): Path<String>) -> impl In
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("secure_file"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_file_with_status(
     State(data): State<AppState>,
     Path((id, status)): Path<(String, String)>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -308,7 +312,7 @@ pub async fn auth_file_with_status(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -317,24 +321,23 @@ pub async fn auth_file_with_status(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("secure_file"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_remove_private(
     State(data): State<AppState>,
     Path(id): Path<String>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -347,7 +350,7 @@ pub async fn auth_remove_private(
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
                 args: &ARGS,
                 id,
@@ -356,24 +359,23 @@ pub async fn auth_remove_private(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("remove"),
             }
-            .render()
-            .unwrap();
-            return (headers, body);
+            .render()?;
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    (headers, body)
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    Ok((headers, body))
 }
 
 pub async fn auth_remove_private_with_status(
     State(state): State<AppState>,
     Path((id, status)): Path<(String, String)>,
-) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = state.pastas.lock().unwrap();
+    let mut pastas = state.pastas.lock()?;
 
     remove_expired(&mut pastas);
 
@@ -394,17 +396,16 @@ pub async fn auth_remove_private_with_status(
                 encrypt_client: pasta.encrypt_client,
                 path: String::from("remove"),
             }
-            .render()
-            .unwrap();
-            headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-            return (headers, body);
+            .render()?;
+            headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+            return Ok((headers, body));
         }
     }
 
     let mut headers = HeaderMap::new();
-    let body = ErrorTemplate { args: &ARGS }.render().unwrap();
-    headers.insert("Content-Type", "text/html; charset=utf-8".parse().unwrap());
-    (headers, body)
+    let body = ErrorTemplate { args: &ARGS }.render()?;
+    headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
+    Ok((headers, body))
 }
 
 pub fn auth_upload_router() -> Router<AppState> {

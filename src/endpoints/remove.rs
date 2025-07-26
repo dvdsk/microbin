@@ -1,3 +1,4 @@
+use crate::AppState;
 use crate::args::ARGS;
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
@@ -7,18 +8,23 @@ use crate::util::auth;
 use crate::util::db::delete;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, remove_expired};
-use crate::AppState;
 use askama::Template;
+use axum::Router;
 use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Router;
 use reqwest::header;
 use std::fs;
 
-pub async fn remove(State(data): State<AppState>, Path(id): Path<String>) -> impl IntoResponse {
-    let mut pastas = data.pastas.lock().unwrap();
+pub async fn remove(
+    State(data): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    let mut pastas = match data.pastas.lock() {
+        Ok(p) => Ok(p),
+        Err(e) => Err(AppError::from(e)),
+    }?;
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -30,7 +36,7 @@ pub async fn remove(State(data): State<AppState>, Path(id): Path<String>) -> imp
         if pasta.id == id {
             // if it's encrypted or read-only, it needs password to be deleted
             if pasta.encrypt_server || pasta.readonly {
-                return (
+                return Ok((
                     StatusCode::FOUND,
                     [(
                         header::LOCATION,
@@ -41,7 +47,7 @@ pub async fn remove(State(data): State<AppState>, Path(id): Path<String>) -> imp
                         ),
                     )],
                     "".to_string(),
-                );
+                ));
             }
 
             // remove the file itself
@@ -74,24 +80,24 @@ pub async fn remove(State(data): State<AppState>, Path(id): Path<String>) -> imp
 
             delete(Some(&pastas), Some(id));
 
-            return (
+            return Ok((
                 StatusCode::FOUND,
                 [(
                     header::LOCATION,
                     format!("{}/list", ARGS.public_path_as_str()),
                 )],
                 "".to_string(),
-            );
+            ));
         }
     }
 
     remove_expired(&mut pastas);
 
-    (
+    Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render().unwrap(),
-    )
+        ErrorTemplate { args: &ARGS }.render()?,
+    ))
 }
 
 pub async fn post_remove(
@@ -106,7 +112,7 @@ pub async fn post_remove(
     };
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         remove_expired(&mut pastas);
     }
 
@@ -115,14 +121,14 @@ pub async fn post_remove(
         return Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            ErrorTemplate { args: &ARGS }.render().unwrap(),
+            ErrorTemplate { args: &ARGS }.render()?,
         ));
     }
 
-    let password_unwrapped = password.unwrap();
+    let password_unwrapped = password?;
 
     {
-        let mut pastas = data.pastas.lock().unwrap();
+        let mut pastas = data.pastas.lock()?;
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
                 if pastas[i].readonly || pastas[i].encrypt_server {
@@ -221,7 +227,7 @@ pub async fn post_remove(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render().unwrap(),
+        ErrorTemplate { args: &ARGS }.render()?,
     ))
 }
 

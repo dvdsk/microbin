@@ -18,7 +18,7 @@ use crate::static_resources::static_resource_router;
 use crate::util::auth::auth_validator;
 use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
-use axum::{middleware, Router};
+use axum::{Router, middleware};
 use chrono::Local;
 use env_logger::Builder;
 use log::LevelFilter;
@@ -126,7 +126,8 @@ async fn main() -> std::io::Result<()> {
         start_telemetry_thread();
     }
 
-    if let Some(username) = ARGS.auth_basic_username.as_ref()  && username.trim() != ""
+    if let Some(username) = ARGS.auth_basic_username.as_ref()
+        && username.trim() != ""
     {
         log::info!("Basic authentication is enabled.");
         router = router.layer(middleware::from_fn(auth_validator));

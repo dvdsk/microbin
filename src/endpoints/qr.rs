@@ -1,16 +1,16 @@
-use crate::args::{Args, ARGS};
+use crate::AppState;
+use crate::args::{ARGS, Args};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::animalnumbers::to_u64;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{self, remove_expired};
-use crate::AppState;
 use askama::Template;
+use axum::Router;
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::Router;
 use reqwest::header;
 
 #[derive(Template)]
@@ -26,7 +26,7 @@ pub async fn getqr(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().unwrap();
+    let mut pastas = data.pastas.lock()?;
 
     let u64_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -59,25 +59,25 @@ pub async fn getqr(
             ),
         };
 
+        let qr_template = QRTemplate {
+            qr: &svg,
+            pasta: &pastas[index],
+            args: &ARGS,
+        }
+        .render()?;
+
         // serve qr code in template
         return Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
             .into_response()
-            .map(|_| {
-                QRTemplate {
-                    qr: &svg,
-                    pasta: &pastas[index],
-                    args: &ARGS,
-                }
-                .render()
-                .unwrap()
-            }));
+            .map(|_| qr_template));
     }
 
-    // otherwise
+    // otherwise,
     // send pasta not found error
+    let err_template = ErrorTemplate { args: &ARGS }.render()?;
     Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
         .into_response()
-        .map(|_| ErrorTemplate { args: &ARGS }.render().unwrap()))
+        .map(|_| err_template))
 }
 
 pub fn qr_router() -> Router<AppState> {

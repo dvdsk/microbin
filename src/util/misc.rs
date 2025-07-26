@@ -1,9 +1,8 @@
+use crate::Pasta;
 use crate::args::ARGS;
 use crate::error_handling::AppError;
-use crate::Pasta;
-use axum::http::StatusCode;
 use linkify::{LinkFinder, LinkKind};
-use magic_crypt::{new_magic_crypt, MagicCryptTrait};
+use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use qrcode_generator::QrCodeEcc;
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
@@ -69,7 +68,10 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
 }
 
 pub fn string_to_qr_svg(str: &str) -> String {
-    qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>).unwrap()
+    qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>).expect(
+        "Error during generation of qr \
+    code",
+    )
 }
 
 pub fn is_valid_url(url: &str) -> bool {
@@ -140,12 +142,8 @@ pub fn decrypt_file(passphrase: &str, input_file: &File) -> Result<Vec<u8>, AppE
     // Encrypt the input data
     let res = mc.decrypt_bytes_to_bytes(&ciphertext[..]);
 
-    if res.is_err() {
-        return Err(AppError {
-            code: StatusCode::BAD_REQUEST,
-            message: String::from("Failed to decrypt file!"),
-        });
+    match res {
+        Ok(data) => Ok(data),
+        Err(e) => Err(AppError::from(e)),
     }
-
-    Ok(res.unwrap())
 }

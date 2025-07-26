@@ -1,7 +1,7 @@
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
-use syntect::html::append_highlighted_html_for_styled_line;
 use syntect::html::IncludeBackground::No;
+use syntect::html::append_highlighted_html_for_styled_line;
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
@@ -12,13 +12,15 @@ pub fn html_highlight(text: &str, extension: &str) -> String {
     let syntax = ps
         .find_syntax_by_extension(extension)
         .or_else(|| Option::from(ps.find_syntax_plain_text()))
-        .unwrap();
+        .expect("syntax not found");
     let mut h = HighlightLines::new(syntax, &ts.themes["InspiredGitHub"]);
 
     let mut highlighted_content: String = String::from("");
 
     for line in LinesWithEndings::from(text) {
-        let ranges: Vec<(Style, &str)> = h.highlight_line(line, &ps).unwrap();
+        let ranges: Vec<(Style, &str)> = h
+            .highlight_line(line, &ps)
+            .expect("error highlighting line");
         append_highlighted_html_for_styled_line(&ranges[..], No, &mut highlighted_content)
             .expect("Failed to append highlighted line!");
     }

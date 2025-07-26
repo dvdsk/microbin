@@ -3,11 +3,11 @@ use crate::error_handling::AppError;
 use axum::extract::{Multipart, Request};
 use axum::middleware::Next;
 use axum::response::Response;
-use base64::engine::general_purpose;
 use base64::Engine;
+use base64::engine::general_purpose;
 use reqwest::StatusCode;
 
-pub async fn auth_validator(req: Request, next: Next) -> Response {
+pub async fn auth_validator(req: Request, next: Next) -> Result<Response, AppError> {
     let (username, password) = req
         .headers()
         .get("authorization")
@@ -30,22 +30,29 @@ pub async fn auth_validator(req: Request, next: Next) -> Response {
         .map(|(user, password)| (Some(user), Some(password)))
         .unwrap_or((None, None));
     if username.is_none() || password.is_none() {
-        return Response::builder()
+        return Ok(Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .header("WWW-Authenticate", "Basic realm=\"Restricted Area\"")
-            .body("Unauthorized".into())
-            .unwrap();
+            .body("Unauthorized".into())?);
     }
-    if username.unwrap() != ARGS.auth_admin_username
-        || password.unwrap() != ARGS.auth_admin_password
+
+    if let Some(username) = username
+        && username != ARGS.auth_admin_username
     {
-        Response::builder()
+        return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
-            .body("Forbidden".into())
-            .unwrap()
-    } else {
-        next.run(req).await
+            .body("Forbidden".into())?);
     }
+
+    if let Some(password) = password
+        && password != ARGS.auth_admin_password
+    {
+        return Ok(Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .body("Forbidden".into())?);
+    }
+
+    Ok(next.run(req).await)
 }
 
 pub async fn password_from_multipart(mut payload: Multipart) -> Result<String, AppError> {

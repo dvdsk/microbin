@@ -1,9 +1,9 @@
 use std::sync::Once;
 
 use bytesize::ByteSize;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 
-use crate::{args::ARGS, pasta::PastaFile, Pasta};
+use crate::{Pasta, args::ARGS, pasta::PastaFile};
 
 pub fn read_all() -> Vec<Pasta> {
     static INIT_SQLITE: Once = Once::new();
