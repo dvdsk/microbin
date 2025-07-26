@@ -91,7 +91,7 @@ impl Pasta {
         let total_size_bytes = if self.has_file() {
             self.file.as_ref().unwrap().size.as_u64() as usize + self.content.len()
         } else {
-            self.content.len()
+            self.content.as_bytes().len()
         };
 
         if total_size_bytes < 1024 {
