@@ -368,5 +368,6 @@ pub fn create_routes() -> Router<AppState> {
         .route("/", get(index))
         .route("/{status}", get(index_with_status))
         .route("/create", post(create))
+        .route("/upload", post(create))
         .route("/create/{status}", post(create))
 }

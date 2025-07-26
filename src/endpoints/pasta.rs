@@ -322,7 +322,7 @@ pub async fn getrawpasta(
         let selected_pasta = pastas[index].content.to_owned();
 
         let response = (
-            StatusCode::NOT_FOUND,
+            StatusCode::OK,
             [(
                 header::CONTENT_TYPE,
                 "text/plain;  \

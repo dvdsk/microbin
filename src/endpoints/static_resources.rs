@@ -13,6 +13,7 @@ async fn static_resources(Path(path): Path<String>) -> impl IntoResponse {
     if let Some(response) = try_embedded(&path) {
         response
     } else {
+        println!("Resource not found: {path}");
         Response::builder()
             .status(404)
             .header("Content-Type", "text/plain")
@@ -22,8 +23,9 @@ async fn static_resources(Path(path): Path<String>) -> impl IntoResponse {
 }
 
 // Hilfsfunktion für rust-embed
-fn try_embedded(path: &str) -> Option<axum::http::Response<axum::body::Body>> {
+fn try_embedded(path: &str) -> Option<Response<axum::body::Body>> {
     Asset::get(path).map(|content| {
+
         axum::http::Response::builder()
             .header(
                 "Content-Type",
@@ -35,5 +37,5 @@ fn try_embedded(path: &str) -> Option<axum::http::Response<axum::body::Body>> {
 }
 
 pub fn static_resource_router() -> Router<AppState> {
-    Router::new().route("/static/{path}", axum::routing::get(static_resources))
+    Router::new().route("/static/{*path}", axum::routing::get(static_resources))
 }
