@@ -10,7 +10,7 @@ use crate::util::misc::remove_expired;
 use crate::AppState;
 use askama::Template;
 use axum::extract::{Multipart, Path, State};
-use axum::http::{header, HeaderMap, HeaderName, StatusCode};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::Router;
@@ -28,7 +28,7 @@ fn pastaresponse(
     data: AppState,
     id: String,
     password: String,
-) -> (StatusCode, [(HeaderName, String); 1], String) {
+) -> impl IntoResponse {
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
@@ -165,11 +165,11 @@ pub async fn getpasta(State(data): State<AppState>, Path(id): Path<String>) -> i
 pub async fn getshortpasta(
     State(data): State<AppState>,
     Path(id): Path<String>,
-) -> (StatusCode, [(HeaderName, String); 1], String) {
+) -> impl IntoResponse {
     pastaresponse(data, id, String::from(""))
 }
 
-fn urlresponse(data: AppState, id: String) -> (StatusCode, [(HeaderName, String); 1], String) {
+fn urlresponse(data: AppState, id: String) -> impl IntoResponse {
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
@@ -260,7 +260,7 @@ pub async fn shortredirecturl(
 pub async fn getrawpasta(
     State(data): State<AppState>,
     Path(id): Path<String>,
-) -> Result<(StatusCode, [(HeaderName, String); 1], String), AppError> {
+) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().unwrap();
 
@@ -350,7 +350,7 @@ pub async fn postrawpasta(
     data: State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
-) -> Result<(StatusCode, [(HeaderName, String); 1], String), AppError> {
+) -> Result<impl IntoResponse, AppError> {
     let password = auth::password_from_multipart(payload).await?;
 
     // get access to the pasta collection
