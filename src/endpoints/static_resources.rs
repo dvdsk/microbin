@@ -14,7 +14,7 @@ async fn static_resources(Path(path): Path<String>) -> impl IntoResponse {
     if let Some(response) = try_embedded(&path) {
         response
     } else {
-        println!("Resource not found: {path}");
+        log::warn!("Resource not found: {path}");
         Response::builder()
             .status(StatusCode::NOT_FOUND)
             .header("Content-Type", "text/plain")

@@ -126,7 +126,7 @@ async fn main() -> std::io::Result<()> {
         start_telemetry_thread();
     }
 
-    if ARGS.auth_basic_username.is_some() && ARGS.auth_basic_username.as_ref().unwrap().trim() != ""
+    if let Some(username) = ARGS.auth_basic_username.as_ref()  && username.trim() != ""
     {
         log::info!("Basic authentication is enabled.");
         router = router.layer(middleware::from_fn(auth_validator));
@@ -136,6 +136,6 @@ async fn main() -> std::io::Result<()> {
 
     let tcp = tokio::net::TcpListener::bind((ARGS.bind, ARGS.port)).await?;
 
-    axum::serve(tcp, app).await.unwrap();
+    axum::serve(tcp, app).await?;
     Ok(())
 }
