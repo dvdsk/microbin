@@ -324,7 +324,7 @@ pub async fn create(
 
     let encrypt_server = new_pasta.encrypt_server;
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
         pastas.push(new_pasta);
 

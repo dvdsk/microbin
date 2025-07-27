@@ -27,7 +27,7 @@ pub async fn post_secure_file(
     };
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -36,7 +36,7 @@ pub async fn post_secure_file(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock()?;
+        let pastas = data.pastas.lock().expect("no microbin thread should panic");
         // find the index of the pasta in the collection based on u64 id
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
@@ -50,7 +50,7 @@ pub async fn post_secure_file(
     let password = auth::password_from_multipart(payload).await?;
 
     {
-        let pastas = data.pastas.lock()?;
+        let pastas = data.pastas.lock().expect("no microbin thread should panic");
         if found {
             if let Some(ref pasta_file) = pastas[index].file {
                 let file = File::open(format!(
@@ -96,7 +96,7 @@ pub async fn get_file(
 
     {
         // get access to the pasta collection
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -105,7 +105,7 @@ pub async fn get_file(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock()?;
+        let pastas = data.pastas.lock().expect("no microbin thread should panic");
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id_intern {
                 index = i;
@@ -115,7 +115,7 @@ pub async fn get_file(
         }
     }
 
-    let pastas = { data.pastas.lock()?.clone() };
+    let pastas = { data.pastas.lock().expect("no microbin thread should panic").clone() };
     if found {
         if let Some(ref pasta_file) = pastas[index].file {
             if pastas[index].encrypt_server {

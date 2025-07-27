@@ -26,7 +26,7 @@ pub async fn getqr(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     let u64_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)

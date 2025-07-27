@@ -69,8 +69,7 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
 
 pub fn string_to_qr_svg(str: &str) -> String {
     qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>).expect(
-        "Error during generation of qr \
-    code",
+        "should be able to generate QR code SVG if the string is not empty",
     )
 }
 

@@ -27,10 +27,7 @@ pub async fn get_edit(
     State(data): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
-    let mut pastas = match data.pastas.lock() {
-        Ok(pastas) => Ok(pastas),
-        Err(e) => Err(AppError::from(e)),
-    }?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -94,7 +91,7 @@ pub async fn get_edit_with_status(
     State(data): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<axum::response::Response, AppError> {
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     let intern_id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -176,7 +173,7 @@ pub async fn post_edit_private(
     }
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -185,7 +182,7 @@ pub async fn post_edit_private(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock()?;
+        let pastas = data.pastas.lock().expect("no microbin thread should panic");
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
                 index = i;
@@ -196,7 +193,7 @@ pub async fn post_edit_private(
     }
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         if found && !pastas[index].encrypt_client {
             let original_content = pastas[index].content.to_owned();
 
@@ -281,7 +278,7 @@ pub async fn post_submit_edit_private(
 
     {
         // get access to the pasta collection
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
         remove_expired(&mut pastas);
     }
@@ -290,7 +287,7 @@ pub async fn post_submit_edit_private(
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock()?;
+        let pastas = data.pastas.lock().expect("no microbin thread should panic");
 
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
@@ -302,7 +299,7 @@ pub async fn post_submit_edit_private(
     }
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
         if found && pastas[index].editable && !pastas[index].encrypt_client {
             if pastas[index].readonly
@@ -385,7 +382,7 @@ pub async fn post_edit(
     };
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         remove_expired(&mut pastas);
     }
 
@@ -406,7 +403,7 @@ pub async fn post_edit(
     }
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {

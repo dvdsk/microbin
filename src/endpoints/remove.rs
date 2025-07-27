@@ -21,10 +21,7 @@ pub async fn remove(
     State(data): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut pastas = match data.pastas.lock() {
-        Ok(p) => Ok(p),
-        Err(e) => Err(AppError::from(e)),
-    }?;
+    let mut pastas =  data.pastas.lock().expect("no microbin thread should panic");
 
     let id = if ARGS.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -34,7 +31,7 @@ pub async fn remove(
 
     for (i, pasta) in pastas.iter().enumerate() {
         if pasta.id == id {
-            // if it's encrypted or read-only, it needs password to be deleted
+            // if it's encrypted or read-only, it needs a password to be deleted
             if pasta.encrypt_server || pasta.readonly {
                 return Ok((
                     StatusCode::FOUND,
@@ -112,7 +109,7 @@ pub async fn post_remove(
     };
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         remove_expired(&mut pastas);
     }
 
@@ -128,7 +125,7 @@ pub async fn post_remove(
     let password_unwrapped = password?;
 
     {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
                 if pastas[i].readonly || pastas[i].encrypt_server {

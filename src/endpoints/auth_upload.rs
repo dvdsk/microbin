@@ -28,11 +28,7 @@ pub async fn auth_upload(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let pastas = data.pastas.lock();
-    let mut pastas = match pastas {
-        Ok(p) => Ok(p),
-        Err(e) => Err(AppError::from(e)),
-    }?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -73,7 +69,7 @@ pub async fn auth_upload_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -111,7 +107,7 @@ pub async fn auth_raw_pasta(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -149,7 +145,7 @@ pub async fn auth_raw_pasta_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -186,7 +182,7 @@ pub async fn auth_edit_private(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -224,7 +220,7 @@ pub async fn auth_edit_private_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -261,7 +257,7 @@ pub async fn auth_file(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -299,7 +295,7 @@ pub async fn auth_file_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
@@ -337,7 +333,7 @@ pub async fn auth_remove_private(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 

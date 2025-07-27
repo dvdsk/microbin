@@ -5,7 +5,7 @@ pub static HARSH: LazyLock<Harsh> = LazyLock::new(|| {
     Harsh::builder()
         .length(6)
         .build()
-        .expect("Harsh couldn't be build")
+        .expect("build with default alphabet and separator should succeed")
 });
 
 pub fn to_hashids(number: u64) -> String {

@@ -76,7 +76,7 @@ pub async fn post_admin(
     }
 
     let pastas = {
-        let mut pastas = data.pastas.lock()?;
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
         remove_expired(&mut pastas);
 

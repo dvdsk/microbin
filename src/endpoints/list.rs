@@ -24,7 +24,7 @@ pub async fn list(State(data): State<AppState>) -> Result<impl IntoResponse, App
         ));
     }
 
-    let mut pastas = data.pastas.lock()?;
+    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
     remove_expired(&mut pastas);
 
