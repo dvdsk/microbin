@@ -20,6 +20,7 @@ This simply provides a branch (dev) with many fixes from microbin main repositor
 -  Moving from actix web to axum web framework for better integration with tokio and async/await
 -  Fixed non-static status codes
 -  Improved reliability of the server code.
+-  Copying text to clipboard also in insecure contexts works
 
 
 ![Screenshot](.github/index.png)

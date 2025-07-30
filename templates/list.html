@@ -165,12 +165,13 @@
 </div>
 
 <script>
+
     const copyURLBtns = document.getElementsByClassName("copy-button");
 
     for (var i = 0; i < copyURLBtns.length; i++) {
         copyURLBtns.item(i).addEventListener("click", event => {
             event.srcElement
-            navigator.clipboard.writeText(event.srcElement.getAttribute("data-url"))
+            copyToClipboard(event.srcElement.getAttribute("data-url"))
             event.srcElement.innerHTML = "Copied"
             setTimeout(() => {
                 event.srcElement.innerHTML = "Copy"

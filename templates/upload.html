@@ -144,6 +144,7 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
 <link rel="stylesheet" href="{{ args.public_path_as_str()}}/static/highlight/highlight.min.css">
 
 <script>
+
   const copyURLBtn = document.getElementById("copy-url-button")
   const copyTextBtn = document.getElementById("copy-text-button")
   const copyRedirectBtn = document.getElementById("copy-redirect-button")
@@ -187,7 +188,7 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
 
   if (copyURLBtn) {
     copyURLBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(url)
+      copyToClipboard(url)
       copyURLBtn.innerHTML = "Copied"
       setTimeout(() => {
         copyURLBtn.innerHTML = "Copy URL"
@@ -198,7 +199,7 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
   // it will be undefined when the element does not exist on non-url pastas
   if (copyRedirectBtn) {
     copyRedirectBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText(redirect_url)
+      copyToClipboard(redirect_url)
       copyRedirectBtn.innerHTML = "Copied"
       setTimeout(() => {
         copyRedirectBtn.innerHTML = "Copy Redirect"
@@ -209,7 +210,7 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
   if (copyTextBtn) {
     copyTextBtn.addEventListener("click", () => {
       const decodeContent = decodeEntity(content)
-      navigator.clipboard.writeText(decodeContent)
+      copyToClipboard(decodeContent)
       copyTextBtn.innerHTML = "Copied"
       setTimeout(() => {
         copyTextBtn.innerHTML = "Copy Text"
