@@ -1,7 +1,7 @@
 # Note, this is a maintained fork of MicroBin.
 This simply provides a branch (dev) with many fixes from microbin main repository applied.
 ### list of patches/PR's applied
--  Fix Json db losing already saved pasta's on crash/power failure #281
+-  Fix JSON db losing already saved pasta's on crash/power failure #281
 -  Updates dependencies #280 
 -  Adds a feature no-c-deps which makes microbin easy to crosscompile #279
 -  Answer Range requests and stream files downloads #277
@@ -17,6 +17,9 @@ This simply provides a branch (dev) with many fixes from microbin main repositor
 -  Minor fixups #211
 -  Prefix some URLs with args.public_path_as_str() #194
 -  Checkbox to hide read counter per pasta #145 
+-  Moving from actix web to axum web framework for better integration with tokio and async/await
+-  Fixed non-static status codes
+-  Improved reliability of the server code.
 
 
 ![Screenshot](.github/index.png)

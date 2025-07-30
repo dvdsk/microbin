@@ -1,6 +1,10 @@
-use crate::args::{Args, ARGS};
-use actix_web::{get, web, HttpResponse};
+use crate::AppState;
+use crate::args::{ARGS, Args};
+use crate::error_handling::AppError;
 use askama::Template;
+use axum::extract::Path;
+use axum::http::Response;
+use axum::response::IntoResponse;
 
 #[derive(Template)]
 #[template(path = "auth_admin.html")]
@@ -9,28 +13,35 @@ struct AuthAdmin<'a> {
     status: String,
 }
 
-#[get("/auth_admin")]
-pub async fn auth_admin() -> HttpResponse {
-    return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        AuthAdmin {
-            args: &ARGS,
-            status: String::from(""),
-        }
-        .render()
-        .unwrap(),
-    );
+async fn auth_admin() -> Result<impl IntoResponse, AppError> {
+    Ok(Response::builder()
+        .header("Content-Type", "text/html; charset=utf-8")
+        .body(
+            AuthAdmin {
+                args: &ARGS,
+                status: "".to_string(),
+            }
+            .render()?,
+        )?)
 }
 
-#[get("/auth_admin/{status}")]
-pub async fn auth_admin_with_status(param: web::Path<String>) -> HttpResponse {
-    let status = param.into_inner();
+async fn auth_admin_with_status(Path(status): Path<String>) -> Result<impl IntoResponse, AppError> {
+    Ok(Response::builder()
+        .header("Content-Type", "text/html; charset=utf-8")
+        .body(
+            AuthAdmin {
+                args: &ARGS,
+                status: status.to_string(),
+            }
+            .render()?,
+        )?)
+}
 
-    return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        AuthAdmin {
-            args: &ARGS,
-            status,
-        }
-        .render()
-        .unwrap(),
-    );
+pub fn auth_admin_router() -> axum::Router<AppState> {
+    axum::Router::new()
+        .route("/auth_admin", axum::routing::get(auth_admin))
+        .route(
+            "/auth_admin/{status}",
+            axum::routing::get(auth_admin_with_status),
+        )
 }

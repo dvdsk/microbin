@@ -1,14 +1,12 @@
 use clap::Parser;
-use lazy_static::lazy_static;
 use serde::Serialize;
 use std::convert::Infallible;
 use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref ARGS: Args = Args::parse();
-}
+pub static ARGS: LazyLock<Args> = LazyLock::new(Args::parse);
 
 #[derive(Parser, Debug, Clone, Serialize)]
 #[clap(author, version, about, long_about = None)]
@@ -150,18 +148,18 @@ pub struct Args {
 
 impl Args {
     pub fn public_path_as_str(&self) -> String {
-        if self.public_path.is_some() {
-            self.public_path.as_ref().unwrap().to_string()
+        if let Some(public_path) = self.public_path.as_ref() {
+            public_path.to_string()
         } else {
             String::from("")
         }
     }
 
     pub fn short_path_as_str(&self) -> String {
-        if self.short_path.is_some() {
-            self.short_path.as_ref().unwrap().to_string()
-        } else if self.public_path.is_some() {
-            self.public_path.as_ref().unwrap().to_string()
+        if let Some(short_path) = self.short_path.as_ref() {
+            short_path.to_string()
+        } else if let Some(public_path) = self.public_path.as_ref() {
+            public_path.to_string()
         } else {
             String::from("")
         }

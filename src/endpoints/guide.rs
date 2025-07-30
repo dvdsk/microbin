@@ -1,6 +1,9 @@
-use crate::args::{Args, ARGS};
-use actix_web::{get, HttpResponse};
+use crate::AppState;
+use crate::args::{ARGS, Args};
+use crate::error_handling::AppError;
 use askama::Template;
+use axum::Router;
+use axum::response::{IntoResponse, Response};
 
 #[derive(Template)]
 #[template(path = "guide.html")]
@@ -8,9 +11,12 @@ struct Guide<'a> {
     args: &'a Args,
 }
 
-#[get("/guide")]
-pub async fn guide() -> HttpResponse {
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(Guide { args: &ARGS }.render().unwrap())
+pub async fn guide() -> Result<impl IntoResponse, AppError> {
+    Ok(Response::builder()
+        .header("Content-Type", "text/html; charset=utf-8")
+        .body(Guide { args: &ARGS }.render()?)?)
+}
+
+pub fn guide_router() -> Router<AppState> {
+    Router::new().route("/guide", axum::routing::get(guide))
 }

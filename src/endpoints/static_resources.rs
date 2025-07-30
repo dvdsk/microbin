@@ -1,21 +1,44 @@
-use actix_web::{web, HttpResponse, Responder};
-use mime_guess::from_path;
+use crate::AppState;
+use crate::error_handling::AppError;
+use axum::Router;
+use axum::extract::Path;
+use axum::http::Response;
+use axum::response::IntoResponse;
+use reqwest::StatusCode;
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "templates/assets/"]
 struct Asset;
 
-fn handle_embedded_file(path: &str) -> HttpResponse {
-    match Asset::get(path) {
-        Some(content) => HttpResponse::Ok()
-            .content_type(from_path(path).first_or_octet_stream().as_ref())
-            .body(content.data.into_owned()),
-        None => HttpResponse::NotFound().body("404 Not Found"),
+async fn static_resources(Path(path): Path<String>) -> Result<impl IntoResponse, AppError> {
+    if let Ok(response) = try_embedded(&path) {
+        Ok(response)
+    } else {
+        log::warn!("Resource not found: {path}");
+        Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header("Content-Type", "text/plain")
+            .body(axum::body::Body::from("Resource not found"))
+            .map_err(AppError::from)
     }
 }
 
-#[actix_web::get("/static/{_:.*}")]
-async fn static_resources(path: web::Path<String>) -> impl Responder {
-    handle_embedded_file(path.as_str())
+// Hilfsfunktion für rust-embed
+fn try_embedded(path: &str) -> Result<Response<axum::body::Body>, AppError> {
+    match Asset::get(path).map(|content| {
+        axum::http::Response::builder()
+            .header(
+                "Content-Type",
+                mime_guess::from_path(path).first_or_octet_stream().as_ref(),
+            )
+            .body(axum::body::Body::from(content.data.into_owned()))
+    }) {
+        Some(response) => Ok(response?),
+        None => Err(AppError::bad_request(format!("Bad request: {path}"))),
+    }
+}
+
+pub fn static_resource_router() -> Router<AppState> {
+    Router::new().route("/static/{*path}", axum::routing::get(static_resources))
 }

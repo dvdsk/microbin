@@ -1,9 +1,12 @@
 use harsh::Harsh;
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref HARSH: Harsh = Harsh::builder().length(6).build().unwrap();
-}
+pub static HARSH: LazyLock<Harsh> = LazyLock::new(|| {
+    Harsh::builder()
+        .length(6)
+        .build()
+        .expect("build with default alphabet and separator should succeed")
+});
 
 pub fn to_hashids(number: u64) -> String {
     HARSH.encode(&[number])

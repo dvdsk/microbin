@@ -26,10 +26,12 @@ fn save_to_file(path: &Path, pasta_data: &Vec<Pasta>) {
     // the new file. This either succeeds or fails. The database is never left
     // in an undefined state.
     let tmp_file_path = path.with_extension(".tmp");
-    let tmp_file = File::create(&tmp_file_path).expect(&format!(
-        "failed to create temporary database file for writing. path: {}",
-        tmp_file_path.display()
-    ));
+    let tmp_file = File::create(&tmp_file_path).unwrap_or_else(|_| {
+        panic!(
+            "failed to create temporary database file for writing. path: {}",
+            tmp_file_path.display()
+        )
+    });
 
     let writer = BufWriter::new(tmp_file);
     serde_json::to_writer(writer, &pasta_data)
@@ -43,7 +45,10 @@ fn migrate(path: &Path) {
     };
 
     let reader = BufReader::new(file);
-    let mut partially_deserialized: Value = serde_json::from_reader(reader).unwrap();
+    let mut partially_deserialized: Value = serde_json::from_reader(reader).expect(
+        "Could not \
+    parse JSON file during migration",
+    );
     let data = partially_deserialized
         .as_array_mut()
         .expect("should be vec");
@@ -71,10 +76,7 @@ fn load_from_file(path: &Path) -> io::Result<Vec<Pasta>> {
     match file {
         Ok(file) => {
             let reader = BufReader::new(file);
-            let data: Vec<Pasta> = match serde_json::from_reader(reader) {
-                Ok(t) => t,
-                _ => Vec::new(),
-            };
+            let data: Vec<Pasta> = serde_json::from_reader(reader).unwrap_or_default();
             Ok(data)
         }
         Err(_) => {
@@ -119,7 +121,7 @@ mod test {
 
     #[test]
     fn test_migration() {
-        let mut tmpfile = NamedTempFile::new().unwrap();
+        let mut tmpfile = NamedTempFile::new().expect("Failed to create temporary file");
 
         let old_db = vec![OldPasta {
             id: 1,
@@ -141,10 +143,10 @@ mod test {
         }];
 
         tmpfile
-            .write(&serde_json::to_vec(&old_db).unwrap())
-            .unwrap();
+            .write_all(&serde_json::to_vec(&old_db).expect("Error serializing old database"))
+            .expect("Error writing old database");
 
-        let migrated_db = load_from_file(tmpfile.path()).unwrap();
-        assert_eq!(migrated_db[0].hide_read_count, false);
+        let migrated_db = load_from_file(tmpfile.path()).expect("Failed to migrate");
+        assert!(!migrated_db[0].hide_read_count);
     }
 }

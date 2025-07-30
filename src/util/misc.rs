@@ -1,13 +1,13 @@
+use crate::Pasta;
 use crate::args::ARGS;
+use crate::error_handling::AppError;
 use linkify::{LinkFinder, LinkKind};
-use magic_crypt::{new_magic_crypt, MagicCryptTrait};
+use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use qrcode_generator::QrCodeEcc;
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::Pasta;
 
 use super::db::delete;
 
@@ -68,7 +68,9 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
 }
 
 pub fn string_to_qr_svg(str: &str) -> String {
-    qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>).unwrap()
+    qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>).expect(
+        "should be able to generate QR code SVG if the string is not empty",
+    )
 }
 
 pub fn is_valid_url(url: &str) -> bool {
@@ -128,10 +130,7 @@ pub fn encrypt_file(
     Ok(())
 }
 
-pub fn decrypt_file(
-    passphrase: &str,
-    input_file: &File,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+pub fn decrypt_file(passphrase: &str, input_file: &File) -> Result<Vec<u8>, AppError> {
     // Read the input file into memory
     let mut reader = BufReader::new(input_file);
     let mut ciphertext = Vec::new();
@@ -142,9 +141,8 @@ pub fn decrypt_file(
     // Encrypt the input data
     let res = mc.decrypt_bytes_to_bytes(&ciphertext[..]);
 
-    if res.is_err() {
-        return Err("Failed to decrypt file".into());
+    match res {
+        Ok(data) => Ok(data),
+        Err(e) => Err(AppError::from(e)),
     }
-
-    Ok(res.unwrap())
 }

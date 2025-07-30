@@ -12,7 +12,9 @@ pub fn to_animal_names(number: u64) -> String {
     let mut result: Vec<&str> = Vec::new();
 
     if number == 0 {
-        return ANIMAL_NAMES[0].parse().unwrap();
+        return ANIMAL_NAMES[0]
+            .parse()
+            .expect("could not parse animal number");
     }
 
     let mut value = number;

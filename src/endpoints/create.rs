@@ -1,51 +1,56 @@
+use crate::args::Args;
+use crate::error_handling::AppError;
 use crate::pasta::PastaFile;
 use crate::util::animalnumbers::to_animal_names;
 use crate::util::db::insert;
 use crate::util::hashids::to_hashids;
 use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
-use crate::{AppState, Pasta, ARGS};
-use actix_multipart::Multipart;
-use actix_web::error::ErrorBadRequest;
-use actix_web::{get, web, Error, HttpResponse, Responder};
+use crate::{ARGS, AppState, Pasta};
 use askama::Template;
+use axum::Router;
+use axum::extract::{Multipart, Path, State};
+use axum::http::Response;
+use axum::response::IntoResponse;
+use axum::routing::{get, post};
 use bytesize::ByteSize;
 use futures::TryStreamExt;
 use log::warn;
-use rand::Rng;
-use std::io::Write;
+use reqwest::StatusCode;
+use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::io::AsyncWriteExt;
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate<'a> {
-    args: &'a ARGS,
+    args: &'a LazyLock<Args>,
     status: String,
 }
 
-#[get("/")]
-pub async fn index() -> impl Responder {
-    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        IndexTemplate {
-            args: &ARGS,
-            status: String::from(""),
-        }
-        .render()
-        .unwrap(),
-    )
+pub async fn index() -> Result<impl IntoResponse, AppError> {
+    let index_html = IndexTemplate {
+        args: &ARGS,
+        status: String::from(""),
+    }
+    .render()?;
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "text/html; charset=utf-8")
+        .body(index_html)?)
 }
 
-#[get("/{status}")]
-pub async fn index_with_status(param: web::Path<String>) -> HttpResponse {
-    let status = param.into_inner();
+pub async fn index_with_status(Path(status): Path<String>) -> Result<impl IntoResponse, AppError> {
+    let index_with_status = IndexTemplate {
+        args: &ARGS,
+        status,
+    }
+    .render()?;
 
-    return HttpResponse::Ok().content_type("text/html; charset=utf-8").body(
-        IndexTemplate {
-            args: &ARGS,
-            status,
-        }
-        .render()
-        .unwrap(),
-    );
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "text/html; charset=utf-8")
+        .body(index_with_status)?)
 }
 
 pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
@@ -70,16 +75,14 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
     }
 }
 
-/// receives a file through http Post on url /upload/a-b-c with a, b and c
+/// Receives a file through http Post on url /upload/a-b-c with a, b and c
 /// different animals. The client sends the post in response to a form.
-// TODO: form field order might need to be changed. In my testing the attachment 
-// data is nestled between password encryption key etc <21-10-24, dvdsk> 
+// TODO: form field order might need to be changed. In my testing the attachment
+// data is nestled between password encryption key etc <21-10-24, dvdsk>
 pub async fn create(
-    data: web::Data<AppState>,
+    data: State<AppState>,
     mut payload: Multipart,
-) -> Result<HttpResponse, Error> {
-    let mut pastas = data.pastas.lock().unwrap();
-
+) -> Result<Response<String>, AppError> {
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
         Err(_) => {
@@ -89,7 +92,7 @@ pub async fn create(
     } as i64;
 
     let mut new_pasta = Pasta {
-        id: rand::thread_rng().gen::<u16>() as u64,
+        id: rand::random::<u16>() as u64,
         content: String::from(""),
         file: None,
         extension: String::from(""),
@@ -111,57 +114,43 @@ pub async fn create(
     let mut random_key: String = String::from("");
     let mut plain_key: String = String::from("");
     let mut uploader_password = String::from("");
+    log::info!("Creating new pasta...");
 
-    while let Some(mut field) = payload.try_next().await? {
+    while let Some(mut field) = payload.next_field().await? {
         let Some(field_name) = field.name() else {
             continue;
         };
         match field_name {
             "uploader_password" => {
                 while let Some(chunk) = field.try_next().await? {
-                    uploader_password
-                        .push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                    uploader_password.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
                 }
                 continue;
             }
             "random_key" => {
                 while let Some(chunk) = field.try_next().await? {
-                    random_key = std::str::from_utf8(&chunk).unwrap().to_string();
+                    random_key = std::str::from_utf8(&chunk)?.to_string();
                 }
                 continue;
             }
             "privacy" => {
                 while let Some(chunk) = field.try_next().await? {
-                    let privacy = std::str::from_utf8(&chunk).unwrap();
-                    new_pasta.private = match privacy {
-                        "public" => false,
-                        _ => true,
-                    };
-                    new_pasta.readonly = match privacy {
-                        "readonly" => true,
-                        _ => false,
-                    };
-                    new_pasta.encrypt_client = match privacy {
-                        "secret" => true,
-                        _ => false,
-                    };
-                    new_pasta.encrypt_server = match privacy {
-                        "private" => true,
-                        "secret" => true,
-                        _ => false,
-                    };
+                    let privacy = std::str::from_utf8(&chunk)?;
+                    new_pasta.private = !matches!(privacy, "public");
+                    new_pasta.readonly = matches!(privacy, "readonly");
+                    new_pasta.encrypt_client = matches!(privacy, "secret");
+                    new_pasta.encrypt_server = matches!(privacy, "private" | "secret")
                 }
             }
             "plain_key" => {
                 while let Some(chunk) = field.try_next().await? {
-                    plain_key = std::str::from_utf8(&chunk).unwrap().to_string();
+                    plain_key = std::str::from_utf8(&chunk)?.to_string();
                 }
                 continue;
             }
             "encrypted_random_key" => {
                 while let Some(chunk) = field.try_next().await? {
-                    new_pasta.encrypted_key =
-                        Some(std::str::from_utf8(&chunk).unwrap().to_string());
+                    new_pasta.encrypted_key = Some(std::str::from_utf8(&chunk)?.to_string());
                 }
                 continue;
             }
@@ -172,14 +161,14 @@ pub async fn create(
             "expiration" => {
                 while let Some(chunk) = field.try_next().await? {
                     new_pasta.expiration =
-                        expiration_to_timestamp(std::str::from_utf8(&chunk).unwrap(), timenow);
+                        expiration_to_timestamp(std::str::from_utf8(&chunk)?, timenow);
                 }
 
                 continue;
             }
             "burn_after" => {
                 while let Some(chunk) = field.try_next().await? {
-                    new_pasta.burn_after_reads = match std::str::from_utf8(&chunk).unwrap() {
+                    new_pasta.burn_after_reads = match std::str::from_utf8(&chunk)? {
                         // give an extra read because the user will be
                         // redirected to the pasta page automatically
                         "1" => 2,
@@ -200,7 +189,7 @@ pub async fn create(
             "content" => {
                 let mut content = String::from("");
                 while let Some(chunk) = field.try_next().await? {
-                    content.push_str(std::str::from_utf8(&chunk).unwrap().to_string().as_str());
+                    content.push_str(std::str::from_utf8(&chunk)?.to_string().as_str());
                 }
                 if !content.is_empty() {
                     new_pasta.content = content;
@@ -215,7 +204,7 @@ pub async fn create(
             }
             "syntax_highlight" => {
                 while let Some(chunk) = field.try_next().await? {
-                    new_pasta.extension = std::str::from_utf8(&chunk).unwrap().to_string();
+                    new_pasta.extension = std::str::from_utf8(&chunk)?.to_string();
                 }
                 continue;
             }
@@ -224,7 +213,7 @@ pub async fn create(
                     continue;
                 }
 
-                let path = field.content_disposition().and_then(|cd| cd.get_filename());
+                let path = field.file_name();
 
                 let path = match path {
                     Some("") => continue,
@@ -244,8 +233,7 @@ pub async fn create(
                     "{}/attachments/{}",
                     ARGS.data_dir,
                     &new_pasta.id_as_animals()
-                ))
-                .unwrap();
+                ))?;
 
                 let filepath = format!(
                     "{}/attachments/{}/{}",
@@ -254,7 +242,7 @@ pub async fn create(
                     &file.name()
                 );
 
-                let mut f = web::block(|| std::fs::File::create(filepath)).await??;
+                let mut f = tokio::fs::File::create(filepath).await?;
                 let mut size = 0;
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
@@ -262,9 +250,18 @@ pub async fn create(
                         && size > ARGS.max_file_size_encrypted_mb * 1024 * 1024)
                         || size > ARGS.max_file_size_unencrypted_mb * 1024 * 1024
                     {
-                        return Err(ErrorBadRequest("File exceeded size limit."));
+                        let repsonse = axum::response::Response::builder()
+                            .status(StatusCode::BAD_REQUEST)
+                            .body(
+                                "File \
+                        exceeded \
+                        size \
+                        limit."
+                                    .to_string(),
+                            )?;
+                        return Ok(repsonse);
                     }
-                    f = web::block(move || f.write_all(&chunk).map(|_| f)).await??;
+                    f.write_all(&chunk).await?;
                 }
 
                 file.size = ByteSize::b(size as u64);
@@ -278,12 +275,20 @@ pub async fn create(
         }
     }
 
-    if ARGS.readonly && ARGS.uploader_password.is_some() {
-        if uploader_password != ARGS.uploader_password.as_ref().unwrap().to_owned() {
-            return Ok(HttpResponse::Found()
-                .append_header(("Location", format!("{}/incorrect", ARGS.public_path_as_str())))
-                .finish());
-        }
+    let res = axum::response::Response::builder()
+        .status(StatusCode::FOUND)
+        .header(
+            "Location",
+            format!("{}/incorrect", ARGS.public_path_as_str()),
+        )
+        .body("".to_string());
+
+    if ARGS.readonly
+        && let Some(uploader_password_args) = ARGS.uploader_password.as_ref()
+        && uploader_password != *uploader_password_args
+        && let Ok(resp) = res
+    {
+        return Ok(resp);
     }
 
     let id = new_pasta.id;
@@ -300,12 +305,15 @@ pub async fn create(
         }
     }
 
-    if new_pasta.file.is_some() && new_pasta.encrypt_server && !new_pasta.readonly {
+    if let Some(new_pasta_file) = new_pasta.file.as_ref()
+        && new_pasta.encrypt_server
+        && !new_pasta.readonly
+    {
         let filepath = format!(
             "{}/attachments/{}/{}",
             ARGS.data_dir,
             &new_pasta.id_as_animals(),
-            &new_pasta.file.as_ref().unwrap().name()
+            &new_pasta_file.name()
         );
         if new_pasta.encrypt_client {
             encrypt_file(&random_key, &filepath).expect("Failed to encrypt file with random key")
@@ -315,12 +323,15 @@ pub async fn create(
     }
 
     let encrypt_server = new_pasta.encrypt_server;
+    {
+        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    pastas.push(new_pasta);
+        pastas.push(new_pasta);
 
-    for (_, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            insert(Some(&pastas), Some(pasta));
+        for pasta in pastas.iter() {
+            if pasta.id == id {
+                insert(Some(&pastas), Some(pasta));
+            }
         }
     }
 
@@ -331,15 +342,26 @@ pub async fn create(
     };
 
     if encrypt_server {
-        Ok(HttpResponse::Found()
-            .append_header(("Location", format!("/auth/{}/success", slug)))
-            .finish())
+        Ok(Response::builder()
+            .status(StatusCode::FOUND)
+            .header("Location", format!("/auth/{slug}/success"))
+            .body("".to_string())?)
     } else {
-        Ok(HttpResponse::Found()
-            .append_header((
+        Ok(Response::builder()
+            .status(StatusCode::FOUND)
+            .header(
                 "Location",
                 format!("{}/upload/{}", ARGS.public_path_as_str(), slug),
-            ))
-            .finish())
+            )
+            .body("".to_string())?)
     }
+}
+
+pub fn create_routes() -> Router<AppState> {
+    Router::new()
+        .route("/", get(index))
+        .route("/{status}", get(index_with_status))
+        .route("/create", post(create))
+        .route("/upload", post(create))
+        .route("/create/{status}", post(create))
 }

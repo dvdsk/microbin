@@ -2,16 +2,6 @@
 compile_error! {"You must either have the default feature enabled (remove
 the no-default-features rust argument) or the no-c-deps feature"}
 
-#[cfg(feature = "default")]
-pub fn new() -> reqwest::blocking::Client {
-    reqwest::blocking::Client::new()
-}
-
-#[cfg(feature = "default")]
-pub fn new_async() -> reqwest::Client {
-    reqwest::Client::new()
-}
-
 #[cfg(feature = "__rustcrypto-tls")]
 pub fn new() -> reqwest::blocking::Client {
     reqwest::blocking::Client::builder()
