@@ -22,10 +22,6 @@ jobs:
           os: macos-latest
           use-cross: true
           cargo-flags: ""
-        - target: aarch64-pc-windows-msvc
-          os: windows-latest
-          use-cross: true
-          cargo-flags: "--no-default-features"
         - target: x86_64-apple-darwin
           os: macos-latest
           cargo-flags: ""
@@ -36,14 +32,6 @@ jobs:
           os: ubuntu-latest
           use-cross: true
           cargo-flags: ""
-        - target: i686-unknown-linux-musl
-          os: ubuntu-latest
-          use-cross: true
-          cargo-flags: ""
-        - target: i686-pc-windows-msvc
-          os: windows-latest
-          use-cross: true
-          cargo-flags: ""
         - target: armv7-unknown-linux-musleabihf
           os: ubuntu-latest
           use-cross: true
@@ -52,22 +40,6 @@ jobs:
           os: ubuntu-latest
           use-cross: true
           cargo-flags: ""
-        - target: mips-unknown-linux-musl
-          os: ubuntu-latest
-          use-cross: true
-          cargo-flags: "--no-default-features"
-        - target: mipsel-unknown-linux-musl
-          os: ubuntu-latest
-          use-cross: true
-          cargo-flags: "--no-default-features"
-        - target: mips64-unknown-linux-gnuabi64
-          os: ubuntu-latest
-          use-cross: true
-          cargo-flags: "--no-default-features"
-        - target: mips64el-unknown-linux-gnuabi64
-          os: ubuntu-latest
-          use-cross: true
-          cargo-flags: "--no-default-features"
     runs-on: ${{matrix.os}}
 
     steps:
@@ -86,13 +58,11 @@ jobs:
         fi
 
 
-    - name: Install Rust Toolchain Components
-      uses: actions-rs/toolchain@v1
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
       with:
-        override: true
-        target: ${{ matrix.target }}
-        toolchain: stable
-        profile: minimal # minimal component installation (ie, no documentation)
+        components: clippy, rustfmt
+        targets: ${{ matrix.target }}
         
     - name: Install OpenSSL
       if: runner.os == 'Linux'
