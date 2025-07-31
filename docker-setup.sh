@@ -16,8 +16,8 @@ install_dir=${install_dir:-/usr/share/microbin}
 # Create directory and download files
 mkdir -p $install_dir
 cd $install_dir
-$download_command https://raw.githubusercontent.com/szabodanika/microbin/master/.env
-$download_command https://raw.githubusercontent.com/szabodanika/microbin/master/compose.yaml
+$download_command https://raw.githubusercontent.com/dvdsk/microbin/master/.env
+$download_command https://raw.githubusercontent.com/dvdsk/microbin/master/compose.yaml
 
 # Get public path URL and port from user
 echo -e "\033[1mEnter public path URL (e.g. https://microbin.myserver.net or http://localhost:8080):\033[0m"
