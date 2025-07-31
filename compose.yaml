@@ -1,6 +1,6 @@
 services:
   microbin:
-    image: uniquepwd/microbin:latest
+    image: ghcr.io/dvdsk/microbin:latest
     restart: always
     ports:
      - "${MICROBIN_PORT}:8080"
