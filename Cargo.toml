@@ -1,15 +1,15 @@
 [package]
 name = "microbin"
-version = "2.0.4"
-edition = "2024"
+version = "2.1.0"
+edition = "2025"
 rust-version = "1.88.0"
-authors = ["Daniel Szabo <daniel@microbin.eu>"]
+authors = ["Daniel Szabo <daniel@microbin.eu>", "David Kleingeld", "SamTV1998"]
 license = "BSD-3-Clause"
 description = "Simple, performant, configurable, entirely self-contained Pastebin and URL shortener."
 readme = "README.md"
 homepage = "https://microbin.eu"
-repository = "https://github.com/szabodanika/microbin"
-keywords = ["pastebin", "filesharing", "microbin", "actix", "selfhosted"]
+repository = "https://github.com/dvdsk/microbin"
+keywords = ["pastebin", "filesharing", "microbin", "axum", "selfhosted"]
 categories = ["multimedia"]
 
 [dependencies]
