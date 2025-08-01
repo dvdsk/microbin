@@ -5,7 +5,7 @@ use crate::util::animalnumbers::to_u64;
 use crate::util::db::update;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, encrypt, remove_expired};
-use crate::{ARGS, AppState, Pasta};
+use crate::{AppState, Pasta};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -29,20 +29,20 @@ pub async fn get_edit(
 ) -> Result<axum::response::Response, AppError> {
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     for pasta in pastas.iter() {
         if pasta.id == id {
             if !pasta.editable {
                 return Ok((
                     StatusCode::FOUND,
-                    [(header::LOCATION, format!("{}/", ARGS.public_path_as_str()))],
+                    [(header::LOCATION, format!("{}/", data.args.public_path_as_str()))],
                     "".to_string(),
                 )
                     .into_response());
@@ -55,8 +55,8 @@ pub async fn get_edit(
                         header::LOCATION,
                         format!(
                             "{}/auth_edit_private/{}",
-                            ARGS.public_path_as_str(),
-                            pasta.id_as_animals()
+                            data.args.public_path_as_str(),
+                            pasta.id_as_animals(&data.args)
                         ),
                     )],
                 )
@@ -68,7 +68,7 @@ pub async fn get_edit(
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 EditTemplate {
                     pasta,
-                    args: &ARGS,
+                    args: &data.args,
                     path: &String::from("edit"),
                     status: &String::from(""),
                 }
@@ -82,7 +82,7 @@ pub async fn get_edit(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     )
         .into_response())
 }
@@ -93,20 +93,20 @@ pub async fn get_edit_with_status(
 ) -> Result<axum::response::Response, AppError> {
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
             if !pasta.editable {
                 return Ok((
                     StatusCode::FOUND,
-                    [(header::LOCATION, format!("{}/", ARGS.public_path_as_str()))],
+                    [(header::LOCATION, format!("{}/", data.args.public_path_as_str()))],
                 )
                     .into_response());
             }
@@ -118,8 +118,8 @@ pub async fn get_edit_with_status(
                         header::LOCATION,
                         format!(
                             "{}/auth_edit_private/{}",
-                            ARGS.public_path_as_str(),
-                            pasta.id_as_animals()
+                            data.args.public_path_as_str(),
+                            pasta.id_as_animals(&data.args)
                         ),
                     )],
                 )
@@ -131,7 +131,7 @@ pub async fn get_edit_with_status(
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 EditTemplate {
                     pasta,
-                    args: &ARGS,
+                    args: &data.args,
                     status: &status,
                     path: &String::from("edit"),
                 }
@@ -144,7 +144,7 @@ pub async fn get_edit_with_status(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     )
         .into_response())
 }
@@ -156,7 +156,7 @@ pub async fn post_edit_private(
 ) -> Result<axum::response::Response, AppError> {
     // get access to the pasta collection
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -175,7 +175,7 @@ pub async fn post_edit_private(
     {
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
     }
 
     // find the index of the pasta in the collection based on u64 id
@@ -203,7 +203,7 @@ pub async fn post_edit_private(
                 if let Ok(rs) = res {
                     pastas[index].content.replace_range(.., rs.as_str());
                     // save pasta in database
-                    update(Some(&pastas), Some(&pastas[index]));
+                    update(Some(&pastas), Some(&pastas[index]), &data.args);
                 } else {
                     return Ok((
                         StatusCode::FOUND,
@@ -211,8 +211,8 @@ pub async fn post_edit_private(
                             header::LOCATION,
                             format!(
                                 "{}/auth_edit_private/{}/incorrect",
-                                ARGS.public_path_as_str(),
-                                pastas[index].id_as_animals()
+                                data.args.public_path_as_str(),
+                                pastas[index].id_as_animals(&data.args)
                             ),
                         )],
                     )
@@ -226,7 +226,7 @@ pub async fn post_edit_private(
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 EditTemplate {
                     pasta: &pastas[index],
-                    args: &ARGS,
+                    args: &data.args,
                     path: &String::from("submit_edit_private"),
                     status: &String::from(""),
                 }
@@ -244,7 +244,7 @@ pub async fn post_edit_private(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     )
         .into_response())
 }
@@ -254,7 +254,7 @@ pub async fn post_submit_edit_private(
     Path(id): Path<String>,
     mut payload: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -280,7 +280,7 @@ pub async fn post_submit_edit_private(
         // get access to the pasta collection
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
     }
 
     // find the index of the pasta in the collection based on u64 id
@@ -317,8 +317,8 @@ pub async fn post_submit_edit_private(
                             header::LOCATION,
                             format!(
                                 "{}/edit/{}/incorrect",
-                                ARGS.public_path_as_str(),
-                                pastas[index].id_as_animals()
+                                data.args.public_path_as_str(),
+                                pastas[index].id_as_animals(&data.args)
                             ),
                         )],
                     )
@@ -331,7 +331,7 @@ pub async fn post_submit_edit_private(
                         .content
                         .replace_range(.., &encrypt(&new_content, &password));
                     // save pasta in database
-                    update(Some(&pastas), Some(&pastas[index]));
+                    update(Some(&pastas), Some(&pastas[index]), &data.args);
                 } else {
                     return Ok((
                         StatusCode::FOUND,
@@ -339,8 +339,8 @@ pub async fn post_submit_edit_private(
                             header::LOCATION,
                             format!(
                                 "{}/auth_edit_private/{}/incorrect",
-                                ARGS.public_path_as_str(),
-                                pastas[index].id_as_animals()
+                                data.args.public_path_as_str(),
+                                pastas[index].id_as_animals(&data.args)
                             ),
                         )],
                     )
@@ -354,8 +354,8 @@ pub async fn post_submit_edit_private(
                     header::LOCATION,
                     format!(
                         "{}/auth/{}/success",
-                        ARGS.public_path_as_str(),
-                        pastas[index].id_as_animals()
+                        data.args.public_path_as_str(),
+                        pastas[index].id_as_animals(&data.args)
                     ),
                 )],
             )
@@ -375,7 +375,7 @@ pub async fn post_edit(
     Path(id): Path<String>,
     mut payload: Multipart,
 ) -> Result<axum::response::Response, AppError> {
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -383,7 +383,7 @@ pub async fn post_edit(
 
     {
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
     }
 
     let mut new_content = String::from("");
@@ -416,7 +416,7 @@ pub async fn post_edit(
                             if res.is_ok() {
                                 pastas[i].content.replace_range(.., &new_content);
                                 // save pasta in database
-                                update(Some(&pastas), Some(&pastas[i]));
+                                update(Some(&pastas), Some(&pastas[i]), &data.args);
                             } else {
                                 return Ok((
                                     StatusCode::FOUND,
@@ -424,8 +424,8 @@ pub async fn post_edit(
                                         header::LOCATION,
                                         format!(
                                             "{}/edit/{}/incorrect",
-                                            ARGS.public_path_as_str(),
-                                            pasta.id_as_animals()
+                                            data.args.public_path_as_str(),
+                                            pasta.id_as_animals(&data.args)
                                         ),
                                     )],
                                 )
@@ -438,8 +438,8 @@ pub async fn post_edit(
                                     header::LOCATION,
                                     format!(
                                         "{}/edit/{}/incorrect",
-                                        ARGS.public_path_as_str(),
-                                        pasta.id_as_animals()
+                                        data.args.public_path_as_str(),
+                                        pasta.id_as_animals(&data.args)
                                     ),
                                 )],
                             )
@@ -448,7 +448,7 @@ pub async fn post_edit(
                     } else {
                         pastas[i].content.replace_range(.., &new_content);
                         // save pasta in database
-                        update(Some(&pastas), Some(&pastas[i]));
+                        update(Some(&pastas), Some(&pastas[i]), &data.args);
                     }
 
                     return Ok((
@@ -457,8 +457,8 @@ pub async fn post_edit(
                             header::LOCATION,
                             format!(
                                 "{}/upload/{}",
-                                ARGS.public_path_as_str(),
-                                pastas[i].id_as_animals()
+                                data.args.public_path_as_str(),
+                                pastas[i].id_as_animals(&data.args)
                             ),
                         )],
                     )
@@ -473,7 +473,7 @@ pub async fn post_edit(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     )
         .into_response())
 }

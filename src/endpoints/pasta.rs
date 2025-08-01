@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::args::{ARGS, Args};
+use crate::args::{ Args};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
@@ -32,14 +32,14 @@ fn pastaresponse(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -60,8 +60,8 @@ fn pastaresponse(
                     header::LOCATION,
                     format!(
                         "{}/auth/{}",
-                        ARGS.public_path_as_str(),
-                        pastas[index].id_as_animals()
+                        data.args.public_path_as_str(),
+                        pastas[index].id_as_animals(&data.args)
                     ),
                 )],
                 "".to_string(),
@@ -72,7 +72,7 @@ fn pastaresponse(
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index]), &data.args);
 
         let original_content = pastas[index].content.to_owned();
 
@@ -88,8 +88,8 @@ fn pastaresponse(
                         header::LOCATION,
                         format!(
                             "{}/auth/{}/incorrect",
-                            ARGS.public_path_as_str(),
-                            pastas[index].id_as_animals()
+                            data.args.public_path_as_str(),
+                            pastas[index].id_as_animals(&data.args)
                         ),
                     )],
                     "".to_string(),
@@ -100,7 +100,7 @@ fn pastaresponse(
         // serve pasta in template
         let pasta_template = PastaTemplate {
             pasta: &pastas[index],
-            args: &ARGS,
+            args: &data.args,
         }
         .render()?;
         let response = (
@@ -126,7 +126,7 @@ fn pastaresponse(
         pastas[index].last_read = timenow;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index]), &data.args);
 
         return Ok(response);
     }
@@ -135,7 +135,7 @@ fn pastaresponse(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     ))
 }
 
@@ -172,14 +172,14 @@ fn urlresponse(data: AppState, id: String) -> Result<impl IntoResponse, AppError
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -198,7 +198,7 @@ fn urlresponse(data: AppState, id: String) -> Result<impl IntoResponse, AppError
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index]), &data.args);
 
         // send redirect if it's a url pasta
         if pastas[index].pasta_type == "url" {
@@ -221,7 +221,7 @@ fn urlresponse(data: AppState, id: String) -> Result<impl IntoResponse, AppError
             pastas[index].last_read = timenow;
 
             // save the updated read count
-            update(Some(&pastas), Some(&pastas[index]));
+            update(Some(&pastas), Some(&pastas[index]), &data.args);
 
             return Ok(response);
         // send error if we're trying to open a non-url pasta as a redirect
@@ -229,7 +229,7 @@ fn urlresponse(data: AppState, id: String) -> Result<impl IntoResponse, AppError
             let response = (
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &ARGS }.render()?,
+                ErrorTemplate { args: &data.args }.render()?,
             );
             return Ok(response);
         }
@@ -238,7 +238,7 @@ fn urlresponse(data: AppState, id: String) -> Result<impl IntoResponse, AppError
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     ))
 }
 
@@ -263,14 +263,14 @@ pub async fn getrawpasta(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -291,8 +291,8 @@ pub async fn getrawpasta(
                     header::LOCATION,
                     format!(
                         "{}/auth_raw/{}",
-                        ARGS.public_path_as_str(),
-                        pastas[index].id_as_animals()
+                        data.args.public_path_as_str(),
+                        pastas[index].id_as_animals(&data.args)
                     ),
                 )],
                 "".to_string(),
@@ -303,7 +303,7 @@ pub async fn getrawpasta(
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index]), &data.args);
 
         // get current unix time in seconds
         let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -355,14 +355,14 @@ pub async fn postrawpasta(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -382,8 +382,8 @@ pub async fn postrawpasta(
                 "Location",
                 format!(
                     "{}/auth/{}",
-                    ARGS.public_path_as_str(),
-                    pastas[index].id_as_animals()
+                    data.args.public_path_as_str(),
+                    pastas[index].id_as_animals(&data.args)
                 )
                 .parse()?,
             );
@@ -393,8 +393,8 @@ pub async fn postrawpasta(
                     header::LOCATION,
                     format!(
                         "{}/auth/{}",
-                        ARGS.public_path_as_str(),
-                        pastas[index].id_as_animals()
+                        data.args.public_path_as_str(),
+                        pastas[index].id_as_animals(&data.args)
                     ),
                 )],
                 "".to_string(),
@@ -405,7 +405,7 @@ pub async fn postrawpasta(
         pastas[index].read_count += 1;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index]), &data.args);
 
         let original_content = pastas[index].content.to_owned();
 
@@ -421,8 +421,8 @@ pub async fn postrawpasta(
                         header::LOCATION,
                         format!(
                             "{}/auth/{}/incorrect",
-                            ARGS.public_path_as_str(),
-                            pastas[index].id_as_animals()
+                            data.args.public_path_as_str(),
+                            pastas[index].id_as_animals(&data.args)
                         ),
                     )],
                     "".to_string(),
@@ -443,7 +443,7 @@ pub async fn postrawpasta(
         pastas[index].last_read = timenow;
 
         // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]));
+        update(Some(&pastas), Some(&pastas[index]), &data.args);
 
         // send raw content of pasta
 

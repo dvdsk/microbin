@@ -4,9 +4,7 @@ use std::convert::Infallible;
 use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
-use std::sync::LazyLock;
 
-pub static ARGS: LazyLock<Args> = LazyLock::new(Args::parse);
 
 #[derive(Parser, Debug, Clone, Serialize)]
 #[clap(author, version, about, long_about = None)]

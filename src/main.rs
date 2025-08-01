@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::args::ARGS;
+use crate::args::{Args};
 use crate::endpoints::admin::admin_router;
 use crate::endpoints::auth_admin::auth_admin_router;
 use crate::endpoints::create::create_routes;
@@ -15,7 +15,6 @@ use crate::endpoints::remove::remove_router;
 use crate::endpoints::static_resources;
 use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
-use crate::util::auth::auth_validator;
 use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
 use axum::{Router, middleware};
@@ -25,7 +24,9 @@ use log::LevelFilter;
 use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+use clap::Parser;
 use tower_http::normalize_path::NormalizePathLayer;
+use crate::util::auth::auth_validator;
 
 pub mod args;
 mod error_handling;
@@ -65,10 +66,14 @@ pub mod endpoints {
 #[derive(Clone)]
 pub struct AppState {
     pub pastas: Arc<Mutex<Vec<Pasta>>>,
+    pub args: Args,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    let args = Args::parse();
+
+
     Builder::new()
         .format(|buf, record| {
             writeln!(
@@ -84,27 +89,28 @@ async fn main() -> std::io::Result<()> {
 
     log::info!(
         "MicroBin starting on http://{}:{}",
-        ARGS.bind.to_string(),
-        ARGS.port.to_string()
+        args.bind.to_string(),
+        args.port.to_string()
     );
 
-    match fs::create_dir_all(format!("{}/public", ARGS.data_dir)) {
+    match fs::create_dir_all(format!("{}/public", args.data_dir)) {
         Ok(dir) => dir,
         Err(error) => {
             log::error!(
                 "Couldn't create data directory {}/attachments/: {:?}",
-                ARGS.data_dir,
+                args.data_dir,
                 error
             );
             panic!(
                 "Couldn't create data directory {}/attachments/: {:?}",
-                ARGS.data_dir, error
+                args.data_dir, error
             );
         }
     };
 
     let app_state = AppState {
-        pastas: Arc::new(Mutex::new(read_all())),
+        pastas: Arc::new(Mutex::new(read_all(&args))),
+        args: args.clone(),
     };
 
     let mut router = Router::new()
@@ -120,22 +126,22 @@ async fn main() -> std::io::Result<()> {
         .merge(static_resource_router())
         .merge(auth_admin_router())
         .fallback(not_found)
-        .with_state(app_state);
+        .with_state(app_state.clone());
 
-    if !ARGS.disable_telemetry {
-        start_telemetry_thread();
+    if !args.disable_telemetry {
+        start_telemetry_thread(&args);
     }
 
-    if let Some(username) = ARGS.auth_basic_username.as_ref()
+    if let Some(username) = args.auth_basic_username.as_ref()
         && username.trim() != ""
     {
         log::info!("Basic authentication is enabled.");
-        router = router.layer(middleware::from_fn(auth_validator));
+        router = router.layer(middleware::from_fn_with_state(app_state, auth_validator));
     }
 
     let app = router.layer(NormalizePathLayer::trim_trailing_slash());
 
-    let tcp = tokio::net::TcpListener::bind((ARGS.bind, ARGS.port)).await?;
+    let tcp = tokio::net::TcpListener::bind((args.bind, args.port)).await?;
 
     axum::serve(tcp, app).await?;
     Ok(())

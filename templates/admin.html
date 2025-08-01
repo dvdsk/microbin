@@ -90,7 +90,8 @@
             <tr>
                 <td>
                     <a
-                        href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                        href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals(args)}}">{{pasta.id_as_animals
+                        (args)}}</a>
                 </td>
                 <td>
                     {{pasta.created_as_string()}}
@@ -124,10 +125,10 @@
                 <td>
                     {% if pasta.content != "" %}
                     <a style="margin-right:1rem"
-                        href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals()}}">Text</a>
+                        href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals(args)}}">Text</a>
                     {%- endif %}
                     {% if pasta.file.is_some() %}
-                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals()}}">
+                    <a style="margin-right:1rem" href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals(args)}}">
                         {% if pasta.file.as_ref().unwrap().is_image() %}
                         Image
                         {%- else if pasta.file.as_ref().unwrap().is_video() %}
@@ -150,10 +151,10 @@
                 <td>
                     {% if pasta.editable %}
                     <a style="margin-right:1rem" href="{{ args.public_path_as_str()
-                    }}/edit/{{pasta.id_as_animals()}}">Edit</a>
+                    }}/edit/{{pasta.id_as_animals(args)}}">Edit</a>
                     <br>
                     {%- endif %}
-                    <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">Remove</a>
+                    <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals(args)}}">Remove</a>
                 </td>
 
             </tr>
@@ -200,7 +201,7 @@
                 <tr>
                     <td>
                         <a
-                            href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                            href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals(args)}}">{{pasta.id_as_animals(args)}}</a>
                     </td>
                     <td>
                         {{pasta.created_as_string()}}
@@ -231,11 +232,11 @@
                     <td>
                         {% if pasta.content != "" %}
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals()}}">Text</a>
+                            href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals(args)}}">Text</a>
                         {%- endif %}
                         {% if pasta.file.is_some() %}
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals()}}">
+                            href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals(args)}}">
                             {% if pasta.file.as_ref().unwrap().is_image() %}
                             Image
                             {%- else if pasta.file.as_ref().unwrap().is_video() %}
@@ -258,10 +259,10 @@
                     <td>
                         {% if pasta.editable %}
                         <a style="margin-right:1rem" href="{{ args.public_path_as_str()
-                    }}/edit/{{pasta.id_as_animals()}}">Edit</a>
+                    }}/edit/{{pasta.id_as_animals(args)}}">Edit</a>
                         <br>
                         {%- endif %}
-                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">Remove</a>
+                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals(args)}}">Remove</a>
                     </td>
 
                 </tr>

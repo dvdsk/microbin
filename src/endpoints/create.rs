@@ -5,7 +5,7 @@ use crate::util::animalnumbers::to_animal_names;
 use crate::util::db::insert;
 use crate::util::hashids::to_hashids;
 use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
-use crate::{ARGS, AppState, Pasta};
+use crate::{AppState, Pasta};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -16,20 +16,19 @@ use bytesize::ByteSize;
 use futures::TryStreamExt;
 use log::warn;
 use reqwest::StatusCode;
-use std::sync::LazyLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncWriteExt;
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate<'a> {
-    args: &'a LazyLock<Args>,
+    args: &'a Args,
     status: String,
 }
 
-pub async fn index() -> Result<impl IntoResponse, AppError> {
+pub async fn index(State(data): State<AppState>) -> Result<impl IntoResponse, AppError> {
     let index_html = IndexTemplate {
-        args: &ARGS,
+        args: &data.args,
         status: String::from(""),
     }
     .render()?;
@@ -40,9 +39,10 @@ pub async fn index() -> Result<impl IntoResponse, AppError> {
         .body(index_html)?)
 }
 
-pub async fn index_with_status(Path(status): Path<String>) -> Result<impl IntoResponse, AppError> {
+pub async fn index_with_status(Path(status): Path<String>, State(data): State<AppState>) -> Result<impl IntoResponse,
+    AppError> {
     let index_with_status = IndexTemplate {
-        args: &ARGS,
+        args: &data.args,
         status,
     }
     .render()?;
@@ -53,7 +53,7 @@ pub async fn index_with_status(Path(status): Path<String>) -> Result<impl IntoRe
         .body(index_with_status)?)
 }
 
-pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
+pub fn expiration_to_timestamp(expiration: &str, timenow: i64, args: &Args) -> i64 {
     match expiration {
         "1min" => timenow + 60,
         "10min" => timenow + 60 * 10,
@@ -62,7 +62,7 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
         "3days" => timenow + 60 * 60 * 24 * 3,
         "1week" => timenow + 60 * 60 * 24 * 7,
         "never" => {
-            if ARGS.eternal_pasta {
+            if args.eternal_pasta {
                 0
             } else {
                 timenow + 60 * 60 * 24 * 7
@@ -80,7 +80,7 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
 // TODO: form field order might need to be changed. In my testing the attachment
 // data is nestled between password encryption key etc <21-10-24, dvdsk>
 pub async fn create(
-    data: State<AppState>,
+    State(data): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response<String>, AppError> {
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -98,7 +98,7 @@ pub async fn create(
         extension: String::from(""),
         private: false,
         readonly: false,
-        editable: ARGS.editable,
+        editable: data.args.editable,
         hide_read_count: false,
         encrypt_server: false,
         encrypted_key: Some(String::from("")),
@@ -108,7 +108,7 @@ pub async fn create(
         burn_after_reads: 0,
         last_read: timenow,
         pasta_type: String::from(""),
-        expiration: expiration_to_timestamp(&ARGS.default_expiry, timenow),
+        expiration: expiration_to_timestamp(&data.args.default_expiry, timenow, &data.args),
     };
 
     let mut random_key: String = String::from("");
@@ -161,7 +161,7 @@ pub async fn create(
             "expiration" => {
                 while let Some(chunk) = field.try_next().await? {
                     new_pasta.expiration =
-                        expiration_to_timestamp(std::str::from_utf8(&chunk)?, timenow);
+                        expiration_to_timestamp(std::str::from_utf8(&chunk)?, timenow, &data.args);
                 }
 
                 continue;
@@ -209,7 +209,7 @@ pub async fn create(
                 continue;
             }
             "file" => {
-                if ARGS.no_file_upload {
+                if data.args.no_file_upload {
                     continue;
                 }
 
@@ -231,14 +231,14 @@ pub async fn create(
 
                 std::fs::create_dir_all(format!(
                     "{}/attachments/{}",
-                    ARGS.data_dir,
-                    &new_pasta.id_as_animals()
+                    data.args.data_dir,
+                    &new_pasta.id_as_animals(&data.args)
                 ))?;
 
                 let filepath = format!(
                     "{}/attachments/{}/{}",
-                    ARGS.data_dir,
-                    &new_pasta.id_as_animals(),
+                    data.args.data_dir,
+                    &new_pasta.id_as_animals(&data.args),
                     &file.name()
                 );
 
@@ -247,8 +247,8 @@ pub async fn create(
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
                     if (new_pasta.encrypt_server
-                        && size > ARGS.max_file_size_encrypted_mb * 1024 * 1024)
-                        || size > ARGS.max_file_size_unencrypted_mb * 1024 * 1024
+                        && size > &data.args.max_file_size_encrypted_mb * 1024 * 1024)
+                        || size > &data.args.max_file_size_unencrypted_mb * 1024 * 1024
                     {
                         let repsonse = axum::response::Response::builder()
                             .status(StatusCode::BAD_REQUEST)
@@ -279,12 +279,12 @@ pub async fn create(
         .status(StatusCode::FOUND)
         .header(
             "Location",
-            format!("{}/incorrect", ARGS.public_path_as_str()),
+            format!("{}/incorrect", &data.args.public_path_as_str()),
         )
         .body("".to_string());
 
-    if ARGS.readonly
-        && let Some(uploader_password_args) = ARGS.uploader_password.as_ref()
+    if data.args.readonly
+        && let Some(uploader_password_args) = data.args.uploader_password.as_ref()
         && uploader_password != *uploader_password_args
         && let Ok(resp) = res
     {
@@ -311,8 +311,8 @@ pub async fn create(
     {
         let filepath = format!(
             "{}/attachments/{}/{}",
-            ARGS.data_dir,
-            &new_pasta.id_as_animals(),
+            data.args.data_dir,
+            &new_pasta.id_as_animals(&data.args),
             &new_pasta_file.name()
         );
         if new_pasta.encrypt_client {
@@ -330,12 +330,12 @@ pub async fn create(
 
         for pasta in pastas.iter() {
             if pasta.id == id {
-                insert(Some(&pastas), Some(pasta));
+                insert(Some(&pastas), Some(pasta), &data.args);
             }
         }
     }
 
-    let slug = if ARGS.hash_ids {
+    let slug = if data.args.hash_ids {
         to_hashids(id)
     } else {
         to_animal_names(id)
@@ -351,7 +351,7 @@ pub async fn create(
             .status(StatusCode::FOUND)
             .header(
                 "Location",
-                format!("{}/upload/{}", ARGS.public_path_as_str(), slug),
+                format!("{}/upload/{}", data.args.public_path_as_str(), slug),
             )
             .body("".to_string())?)
     }

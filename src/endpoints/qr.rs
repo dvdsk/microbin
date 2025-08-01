@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::args::{ARGS, Args};
+use crate::args::{Args};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
@@ -16,9 +16,9 @@ use reqwest::header;
 #[derive(Template)]
 #[template(path = "qr.html", escape = "none")]
 struct QRTemplate<'a> {
+    args: &'a Args,
     qr: &'a String,
     pasta: &'a Pasta,
-    args: &'a Args,
 }
 
 pub async fn getqr(
@@ -28,14 +28,14 @@ pub async fn getqr(
     // get access to the pasta collection
     let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-    let u64_id = if ARGS.hash_ids {
+    let u64_id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
     // remove expired pastas (including this one if needed)
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -52,17 +52,17 @@ pub async fn getqr(
         // generate the QR code as an SVG - if its a file or text pastas, this will point to the /upload endpoint, otherwise to the /url endpoint, essentially directly taking the user to the url stored in the pasta
         let svg: String = match pastas[index].pasta_type.as_str() {
             "url" => misc::string_to_qr_svg(
-                format!("{}/url/{}", &ARGS.public_path_as_str(), &id).as_str(),
+                format!("{}/url/{}", &data.args.public_path_as_str(), &id).as_str(),
             ),
             _ => misc::string_to_qr_svg(
-                format!("{}/upload/{}", &ARGS.public_path_as_str(), &id).as_str(),
+                format!("{}/upload/{}", &data.args.public_path_as_str(), &id).as_str(),
             ),
         };
 
         let qr_template = QRTemplate {
             qr: &svg,
             pasta: &pastas[index],
-            args: &ARGS,
+            args: &data.args,
         }
         .render()?;
 
@@ -74,7 +74,7 @@ pub async fn getqr(
 
     // otherwise,
     // send pasta not found error
-    let err_template = ErrorTemplate { args: &ARGS }.render()?;
+    let err_template = ErrorTemplate { args: &data.args }.render()?;
     Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
         .into_response()
         .map(|_| err_template))

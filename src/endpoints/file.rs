@@ -1,5 +1,4 @@
 use crate::AppState;
-use crate::args::ARGS;
 use crate::error_handling::AppError;
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
@@ -20,7 +19,7 @@ pub async fn post_secure_file(
 ) -> Result<Response, AppError> {
     // get access to the pasta collection
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -29,7 +28,7 @@ pub async fn post_secure_file(
     {
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
     }
 
     // find the index of the pasta in the collection based on u64 id
@@ -55,8 +54,8 @@ pub async fn post_secure_file(
             if let Some(ref pasta_file) = pastas[index].file {
                 let file = File::open(format!(
                     "{}/attachments/{}/data.enc",
-                    ARGS.data_dir,
-                    pastas[index].id_as_animals()
+                    &data.args.data_dir,
+                    pastas[index].id_as_animals(&data.args)
                 ))?;
 
                 // Not compatible with NamedFile from actix_files (it needs a File
@@ -87,8 +86,8 @@ pub async fn post_secure_file(
 pub async fn get_file(
     Path(id): Path<String>,
     State(data): State<AppState>,
-) -> Result<axum::response::Response, AppError> {
-    let id_intern = if ARGS.hash_ids {
+) -> Result<Response, AppError> {
+    let id_intern = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -98,7 +97,7 @@ pub async fn get_file(
         // get access to the pasta collection
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
     }
 
     // find the index of the pasta in the collection based on u64 id
@@ -123,7 +122,7 @@ pub async fn get_file(
                     StatusCode::FOUND,
                     [(
                         header::LOCATION,
-                        format!("/auth_file/{}", pastas[index].id_as_animals()),
+                        format!("/auth_file/{}", pastas[index].id_as_animals(&data.args)),
                     )],
                 )
                     .into_response());
@@ -132,8 +131,8 @@ pub async fn get_file(
             // Construct the path to the file
             let file_path = format!(
                 "{}/attachments/{}/{}",
-                ARGS.data_dir,
-                pastas[index].id_as_animals(),
+                &data.args.data_dir,
+                pastas[index].id_as_animals(&data.args),
                 pasta_file.name()
             );
             let file_path = PathBuf::from(file_path);

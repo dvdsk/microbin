@@ -1,7 +1,8 @@
 use crate::AppState;
-use crate::args::{ARGS, Args};
+use crate::args::{Args};
 use crate::error_handling::AppError;
 use askama::Template;
+use axum::extract::State;
 use axum::Router;
 use axum::response::{IntoResponse, Response};
 
@@ -11,10 +12,10 @@ struct Guide<'a> {
     args: &'a Args,
 }
 
-pub async fn guide() -> Result<impl IntoResponse, AppError> {
+pub async fn guide(State(data): State<AppState>) -> Result<impl IntoResponse, AppError> {
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
-        .body(Guide { args: &ARGS }.render()?)?)
+        .body(Guide { args: &data.args }.render()?)?)
 }
 
 pub fn guide_router() -> Router<AppState> {

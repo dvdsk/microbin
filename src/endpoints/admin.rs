@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::args::{ARGS, Args};
+use crate::args::{Args};
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::misc::remove_expired;
@@ -23,12 +23,12 @@ struct AdminTemplate<'a> {
     update: &'a Option<Version>,
 }
 
-pub async fn get_admin() -> Result<impl IntoResponse, AppError> {
+pub async fn get_admin(State(data): State<AppState>) -> Result<impl IntoResponse, AppError> {
     Ok((
         StatusCode::FOUND,
         [(
             header::LOCATION,
-            format!("{}/auth_admin", ARGS.public_path_as_str()),
+            format!("{}/auth_admin", &data.args.public_path_as_str()),
         )],
         "".to_string(),
     ))
@@ -63,12 +63,12 @@ pub async fn post_admin(
         }
     }
 
-    if username != ARGS.auth_admin_username || password != ARGS.auth_admin_password {
+    if username != data.args.auth_admin_username || password != data.args.auth_admin_password {
         return Ok((
             StatusCode::FOUND,
             [(
                 header::LOCATION,
-                format!("{}/auth_admin/incorrect", ARGS.public_path_as_str()),
+                format!("{}/auth_admin/incorrect", data.args.public_path_as_str()),
             )],
             "".to_string(),
         )
@@ -78,7 +78,7 @@ pub async fn post_admin(
     let pastas = {
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
 
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
 
         // sort pastas in reverse-chronological order of creation time
         pastas.sort_by(|a, b| b.created.cmp(&a.created));
@@ -89,19 +89,19 @@ pub async fn post_admin(
     let mut status = "OK";
     let mut message = "";
 
-    if ARGS.public_path.is_none() {
+    if data.args.public_path.is_none() {
         status = "WARNING";
         message = "Warning: No public URL set with --public-path parameter. QR code and URL Copying functions have been disabled"
     }
 
-    if ARGS.auth_admin_username == "admin" && ARGS.auth_admin_password == "m1cr0b1n" {
+    if data.args.auth_admin_username == "admin" && data.args.auth_admin_password == "m1cr0b1n" {
         status = "WARNING";
         message = "Warning: You are using the default admin login details. This is a security risk, please change them."
     }
 
     let update;
 
-    if !ARGS.disable_update_checking {
+    if !data.args.disable_update_checking {
         let latest_version_res = fetch_latest_version().await;
         if let Ok(latest_version) = latest_version_res {
             if latest_version.newer_than_current() {
@@ -121,7 +121,7 @@ pub async fn post_admin(
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
         AdminTemplate {
             pastas: &pastas,
-            args: &ARGS,
+            args: &data.args,
             status: &String::from(status),
             version_string: &format!("{}", CURRENT_VERSION.long_title),
             message: &String::from(message),

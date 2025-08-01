@@ -1,5 +1,4 @@
 use crate::AppState;
-use crate::args::ARGS;
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::PastaFile;
@@ -23,7 +22,7 @@ pub async fn remove(
 ) -> Result<impl IntoResponse, AppError> {
     let mut pastas =  data.pastas.lock().expect("no microbin thread should panic");
 
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -39,8 +38,8 @@ pub async fn remove(
                         header::LOCATION,
                         format!(
                             "{}/auth_remove_private/{}",
-                            ARGS.public_path_as_str(),
-                            pasta.id_as_animals()
+                            data.args.public_path_as_str(),
+                            pasta.id_as_animals(&data.args)
                         ),
                     )],
                     "".to_string(),
@@ -51,8 +50,8 @@ pub async fn remove(
             if let Some(PastaFile { name, .. }) = &pasta.file {
                 if fs::remove_file(format!(
                     "{}/attachments/{}/{}",
-                    ARGS.data_dir,
-                    pasta.id_as_animals(),
+                    data.args.data_dir,
+                    pasta.id_as_animals(&data.args),
                     name
                 ))
                 .is_err()
@@ -63,8 +62,8 @@ pub async fn remove(
                 // and remove the containing directory
                 if fs::remove_dir(format!(
                     "{}/attachments/{}/",
-                    ARGS.data_dir,
-                    pasta.id_as_animals()
+                    data.args.data_dir,
+                    pasta.id_as_animals(&data.args)
                 ))
                 .is_err()
                 {
@@ -75,25 +74,25 @@ pub async fn remove(
             // remove it from in-memory pasta list
             pastas.remove(i);
 
-            delete(Some(&pastas), Some(id));
+            delete(Some(&pastas), Some(id), &data.args);
 
             return Ok((
                 StatusCode::FOUND,
                 [(
                     header::LOCATION,
-                    format!("{}/list", ARGS.public_path_as_str()),
+                    format!("{}/list", data.args.public_path_as_str()),
                 )],
                 "".to_string(),
             ));
         }
     }
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &data.args);
 
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     ))
 }
 
@@ -102,7 +101,7 @@ pub async fn post_remove(
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
-    let id = if ARGS.hash_ids {
+    let id = if data.args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -110,7 +109,7 @@ pub async fn post_remove(
 
     {
         let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
-        remove_expired(&mut pastas);
+        remove_expired(&mut pastas, &data.args);
     }
 
     let password = auth::password_from_multipart(payload).await;
@@ -118,7 +117,7 @@ pub async fn post_remove(
         return Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            ErrorTemplate { args: &ARGS }.render()?,
+            ErrorTemplate { args: &data.args }.render()?,
         ));
     }
 
@@ -137,8 +136,8 @@ pub async fn post_remove(
                             if let Some(PastaFile { name, .. }) = &pasta.file {
                                 if fs::remove_file(format!(
                                     "{}/attachments/{}/{}",
-                                    ARGS.data_dir,
-                                    pasta.id_as_animals(),
+                                    data.args.data_dir,
+                                    pasta.id_as_animals(&data.args),
                                     name
                                 ))
                                 .is_err()
@@ -149,8 +148,8 @@ pub async fn post_remove(
                                 // and remove the containing directory
                                 if fs::remove_dir(format!(
                                     "{}/attachments/{}/",
-                                    ARGS.data_dir,
-                                    pasta.id_as_animals()
+                                    data.args.data_dir,
+                                    pasta.id_as_animals(&data.args)
                                 ))
                                 .is_err()
                                 {
@@ -161,13 +160,13 @@ pub async fn post_remove(
                             // remove it from in-memory pasta list
                             pastas.remove(i);
 
-                            delete(Some(&pastas), Some(id));
+                            delete(Some(&pastas), Some(id), &data.args);
 
                             let res = (
                                 StatusCode::FOUND,
                                 [(
                                     header::LOCATION,
-                                    format!("{}/list", ARGS.public_path_as_str()),
+                                    format!("{}/list", data.args.public_path_as_str()),
                                 )],
                                 "".to_string(),
                             );
@@ -179,8 +178,8 @@ pub async fn post_remove(
                                     header::LOCATION,
                                     format!(
                                         "{}/auth_remove_private/{}/incorrect",
-                                        ARGS.public_path_as_str(),
-                                        pasta.id_as_animals()
+                                        data.args.public_path_as_str(),
+                                        pasta.id_as_animals(&data.args)
                                     ),
                                 )],
                                 "".to_string(),
@@ -194,8 +193,8 @@ pub async fn post_remove(
                                 header::LOCATION,
                                 format!(
                                     "{}/auth_remove_private/{}",
-                                    ARGS.public_path_as_str(),
-                                    pasta.id_as_animals()
+                                    data.args.public_path_as_str(),
+                                    pasta.id_as_animals(&data.args)
                                 ),
                             )],
                             "".to_string(),
@@ -210,8 +209,8 @@ pub async fn post_remove(
                         header::LOCATION,
                         format!(
                             "{}/upload/{}",
-                            ARGS.public_path_as_str(),
-                            pastas[i].id_as_animals()
+                            data.args.public_path_as_str(),
+                            pastas[i].id_as_animals(&data.args)
                         ),
                     )],
                     "".to_string(),
@@ -224,7 +223,7 @@ pub async fn post_remove(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &ARGS }.render()?,
+        ErrorTemplate { args: &data.args }.render()?,
     ))
 }
 
