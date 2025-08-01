@@ -121,6 +121,7 @@ pub async fn create(
 
     while let Some(mut field) = payload.next_field().await? {
         let Some(field_name) = field.name() else {
+            log::trace!("Skipping field with no name");
             continue;
         };
         match field_name {
@@ -213,15 +214,23 @@ pub async fn create(
             }
             "file" => {
                 if args.no_file_upload {
+                    log::trace!("File upload disabled, skipping file field");
                     continue;
                 }
 
                 let path = field.file_name();
+                log::debug!("Processing file upload with filename: {:?}", path);
 
                 let path = match path {
-                    Some("") => continue,
+                    Some("") => {
+                        log::trace!("Empty filename, skipping");
+                        continue;
+                    },
                     Some(p) => p,
-                    None => continue,
+                    None => {
+                        log::trace!("No filename provided, skipping");
+                        continue;
+                    },
                 };
 
                 let mut file = match PastaFile::from_unsanitized(path) {
@@ -247,12 +256,22 @@ pub async fn create(
 
                 let mut f = tokio::fs::File::create(filepath).await?;
                 let mut size = 0;
+                let mut last_logged_mb = 0;
+                log::debug!("Starting file upload for: {}, max sizes - encrypted: {}MB, unencrypted: {}MB", 
+                           file.name(), ARGS.max_file_size_encrypted_mb, ARGS.max_file_size_unencrypted_mb);
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
+                    let current_mb = size / (1024 * 1024);
+                    if current_mb > last_logged_mb {
+                        log::debug!("File upload progress: {} bytes ({:.2}MB)", size, size as f64 / (1024.0 * 1024.0));
+                        last_logged_mb = current_mb;
+                    }
                     if (new_pasta.encrypt_server
                         && size > &args.max_file_size_encrypted_mb * 1024 * 1024)
                         || size > &args.max_file_size_unencrypted_mb * 1024 * 1024
                     {
+                        log::warn!("File size limit exceeded: {} bytes ({}MB), encrypt_server: {}", 
+                                  size, size / (1024 * 1024), new_pasta.encrypt_server);
                         let repsonse = axum::response::Response::builder()
                             .status(StatusCode::BAD_REQUEST)
                             .body(
@@ -266,6 +285,8 @@ pub async fn create(
                     }
                     f.write_all(&chunk).await?;
                 }
+                log::debug!("File upload completed: {} bytes ({:.2}MB) written to disk", 
+                           size, size as f64 / (1024.0 * 1024.0));
 
                 file.size = ByteSize::b(size as u64);
 

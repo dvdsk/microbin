@@ -16,7 +16,7 @@ categories = ["multimedia"]
 axum = { version = "0.8.4", features = ["multipart", "macros"] }
 tokio-util={version = "0.7.15"}
 axum-extra = {version = "0.10.1"}
-tower-http = { version = "0.6.6", features = ["fs", "normalize-path"] }
+tower-http = { version = "0.6.6", features = ["fs", "normalize-path", "limit"] }
 tokio = {version = "1.46.1", features = ["full"]}
 askama = "0.14.0"
 askama-filters = { version = "0.1.3", features = ["chrono"] }
