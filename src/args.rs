@@ -117,8 +117,11 @@ pub struct Args {
     #[clap(long, env = "MICROBIN_LIST_SERVER")]
     pub list_server: bool,
 
-    #[clap(long, env = "MICROBIN_DISABLE_TELEMETRY")]
-    pub disable_telemetry: bool,
+    #[clap(long, env = "MICROBIN_ENABLE_TELEMETRY")]
+    pub enable_telemetry: bool,
+
+    #[clap(long, env = "MICROBIN_TELEMETRY_URL", default_value = "https://api.microbin.eu/telemetry/")]
+    pub telemetry_url: String,
 
     #[clap(long, env = "MICROBIN_DISABLE_UPDATE_CHECKING")]
     pub disable_update_checking: bool,
@@ -201,7 +204,8 @@ impl Args {
             no_file_upload: self.no_file_upload,
             custom_css: self.custom_css,
             hash_ids: self.hash_ids,
-            disable_telemetry: self.disable_telemetry,
+            enable_telemetry: self.enable_telemetry,
+            telemetry_url: self.telemetry_url,
             encryption_client_side: self.encryption_client_side,
             encryption_server_side: self.encryption_server_side,
             max_file_size_encrypted_mb: self.max_file_size_encrypted_mb,

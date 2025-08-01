@@ -127,7 +127,7 @@ async fn main() -> std::io::Result<()> {
         .fallback(not_found)
         .with_state(app_state.clone());
 
-    if !args.disable_telemetry {
+    if !args.enable_telemetry {
         start_telemetry_thread(&args);
     }
 

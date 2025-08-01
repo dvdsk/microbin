@@ -29,9 +29,9 @@ fn send_telemetry(args: &Args) -> Result<(), reqwest::Error> {
     // Convert the telemetry object to JSON
     let json_body = json!(args.to_owned().without_secrets().to_owned()).to_string();
 
-    // Send the telemetry data to the API
+    // Send the telemetry data to the configured API endpoint
     crate::util::http_client::new()
-        .post("https://api.microbin.eu/telemetry/")
+        .post(&ARGS.telemetry_url)
         .header("Content-Type", "application/json")
         .body(json_body)
         .send()?;
