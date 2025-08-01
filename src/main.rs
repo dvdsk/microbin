@@ -17,6 +17,7 @@ use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
 use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
+use crate::util::cleanup::start_cleanup_thread;
 use axum::{Router, middleware};
 use chrono::Local;
 use env_logger::Builder;
@@ -35,6 +36,7 @@ pub mod pasta;
 pub mod util {
     pub mod animalnumbers;
     pub mod auth;
+    pub mod cleanup;
     pub mod db;
     pub mod db_json;
     #[cfg(feature = "default")]
@@ -111,6 +113,9 @@ async fn main() -> std::io::Result<()> {
         pastas: Arc::new(Mutex::new(read_all(&args))),
         args: args.clone(),
     };
+
+    // Start background cleanup thread for expired pastes
+    start_cleanup_thread(Arc::clone(&app_state.pastas));
 
     let mut router = Router::new()
         .merge(create_routes())
