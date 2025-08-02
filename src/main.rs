@@ -114,7 +114,6 @@ async fn main() -> std::io::Result<()> {
         args: args.clone(),
     };
 
-    // Start background cleanup thread for expired pastes
     start_cleanup_thread(Arc::clone(&app_state.pastas), args.clone());
 
     let mut router = Router::new()
@@ -143,7 +142,6 @@ async fn main() -> std::io::Result<()> {
         router = router.layer(middleware::from_fn_with_state(app_state, auth_validator));
     }
 
-    // Set body limit to the larger of the two max file sizes plus some overhead for multipart data
     let max_size = std::cmp::max(args.max_file_size_encrypted_mb, args.max_file_size_unencrypted_mb);
     let body_limit = (max_size + 10) * 1024 * 1024; // Add 10MB overhead for multipart encoding
     

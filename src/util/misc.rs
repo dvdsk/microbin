@@ -10,6 +10,52 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::args::Args;
 use super::db::delete;
 
+pub fn cleanup_orphaned_files(pastas: &Vec<Pasta>, args: &Args) {
+    log::debug!("Starting orphaned files cleanup");
+    
+    let attachments_dir = format!("{}/attachments", args.data_dir);
+    let dirs = match std::fs::read_dir(&attachments_dir) {
+        Ok(dirs) => dirs,
+        Err(e) => {
+            log::debug!("No attachments directory found or unable to read: {}", e);
+            return;
+        }
+    };
+    
+    let mut orphaned_count = 0;
+    for dir_entry in dirs.flatten() {
+        if !dir_entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        
+        let dir_name = dir_entry.file_name().to_string_lossy().to_string();
+        
+        // Check if any pasta references this directory
+        let is_referenced = pastas.iter().any(|pasta| {
+            pasta.file.is_some() && pasta.id_as_animals(&args.hash_ids) == dir_name
+        });
+        
+        if !is_referenced {
+            log::debug!("Found orphaned directory: {}", dir_name);
+            let full_path = dir_entry.path();
+            
+            // Remove the entire directory and its contents
+            if let Err(e) = std::fs::remove_dir_all(&full_path) {
+                log::error!("Failed to remove orphaned directory {:?}: {}", full_path, e);
+            } else {
+                log::info!("Removed orphaned directory: {:?}", full_path);
+                orphaned_count += 1;
+            }
+        }
+    }
+    
+    if orphaned_count > 0 {
+        log::info!("Orphaned files cleanup: removed {} orphaned directories", orphaned_count);
+    } else {
+        log::debug!("Orphaned files cleanup: no orphaned files found");
+    }
+}
+
 pub fn remove_expired(pastas: &mut Vec<Pasta>, args: &Args) {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -34,31 +80,46 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>, args: &Args) {
             // keep
             true
         } else {
+            log::debug!("Removing expired pasta ID: {} ({})", p.id, p.id_as_animals(&args.hash_ids));
+            if p.expiration > 0 && p.expiration <= timenow {
+                log::debug!("  Reason: Expired (expiration: {}, now: {})", p.expiration, timenow);
+            }
+            if p.burn_after_reads > 0 && p.read_count >= p.burn_after_reads {
+                log::debug!("  Reason: Burn after reads limit reached ({}/{})", p.read_count, p.burn_after_reads);
+            }
+            if args.gc_days > 0 && p.last_read_days_ago() >= args.gc_days {
+                log::debug!("  Reason: GC limit reached (last read {} days ago, limit: {})", p.last_read_days_ago(), args.gc_days);
+            }
+            
             // remove from database
             delete(None, Some(p.id), args);
 
             // remove the file itself
             if let Some(file) = &p.file {
-                if fs::remove_file(format!(
+                let file_path = format!(
                     "{}/attachments/{}/{}",
                     args.data_dir,
                     p.id_as_animals(&args.hash_ids),
                     file.name()
-                ))
-                .is_err()
-                {
-                    log::error!("Failed to delete file {}!", file.name())
+                );
+                log::debug!("Attempting to delete file: {}", file_path);
+                if let Err(e) = fs::remove_file(&file_path) {
+                    log::error!("Failed to delete file {}: {}", file_path, e);
+                } else {
+                    log::debug!("Successfully deleted file: {}", file_path);
                 }
 
                 // and remove the containing directory
-                if fs::remove_dir(format!(
+                let dir_path = format!(
                     "{}/attachments/{}/",
                     args.data_dir,
                     p.id_as_animals(&args.hash_ids)
-                ))
-                .is_err()
-                {
-                    log::error!("Failed to delete directory {}!", file.name())
+                );
+                log::debug!("Attempting to delete directory: {}", dir_path);
+                if let Err(e) = fs::remove_dir(&dir_path) {
+                    log::error!("Failed to delete directory {}: {}", dir_path, e);
+                } else {
+                    log::debug!("Successfully deleted directory: {}", dir_path);
                 }
             }
             false

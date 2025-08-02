@@ -1,29 +1,19 @@
 use std::{
     sync::{Arc, Mutex},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
-use crate::{pasta::Pasta, util::misc::remove_expired, args::Args};
+use crate::{pasta::Pasta, util::misc::{remove_expired, cleanup_orphaned_files}, args::Args};
 
 pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>, args: Args) {
-    // Start a new thread that calls the cleanup function every hour
     thread::spawn(move || {
-        let mut last_run = Instant::now();
-        
-        log::info!("Started background cleanup thread - checking for expired pastes every hour");
+        log::info!("Started background cleanup thread - running immediately and then every hour");
         
         loop {
-            // Wait for 1 hour since the last run
-            let next_run = last_run + Duration::from_secs(60 * 60); // 1 hour
-            let now = Instant::now();
-            if next_run > now {
-                thread::sleep(next_run - now);
-            }
-            
-            // Perform cleanup
             match app_state.lock() {
                 Ok(mut pastas) => {
+                    // Clean up expired pastes
                     let count_before = pastas.len();
                     remove_expired(&mut pastas, &args);
                     let count_after = pastas.len();
@@ -34,13 +24,16 @@ pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>, args: Args) {
                     } else {
                         log::debug!("Background cleanup: no expired pastes found");
                     }
+                    
+                    // Clean up orphaned files (files without pasta references)
+                    cleanup_orphaned_files(&pastas, &args);
                 }
                 Err(e) => {
                     log::error!("Background cleanup failed to acquire pasta lock: {}", e);
                 }
             }
             
-            last_run = Instant::now();
+            thread::sleep(Duration::from_secs(60 * 60)); // 1 hour
         }
     });
 }
