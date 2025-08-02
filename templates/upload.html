@@ -12,18 +12,19 @@
     Copy Redirect
   </button>
   {%- endif %}
-  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/raw/{{pasta.id_as_animals(args)}}">Raw Text
+  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/raw/{{pasta.id_as_animals(args.hash_ids)}}">Raw Text
     Content</a>
   {%- endif %} {% if args.qr && args.public_path_as_str() != "" %}
-  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/qr/{{pasta.id_as_animals(args)}}">QR</a>
+  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/qr/{{pasta.id_as_animals(args.hash_ids)}}">QR</a>
   {%- endif %} {% if pasta.editable && !pasta.encrypt_client %}
-  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/edit/{{pasta.id_as_animals(args)}}">Edit</a>
+  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/edit/{{pasta.id_as_animals(args.hash_ids)}}">Edit</a>
   {%- endif %}
-  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/remove/{{pasta.id_as_animals(args)}}">Remove</a>
+  <a style="margin-right: 1rem" href="{{ args.public_path_as_str()  }}/remove/{{pasta.id_as_animals(args.hash_ids)}}">Remove</a>
 </div>
 <div style="float: right">
   <a style="margin-right: 0.5rem"
-    href="{{ args.public_path_as_str()  }}/upload/{{pasta.id_as_animals(args)}}"><i>{{pasta.id_as_animals(args)}}</i></a>
+    href="{{ args.public_path_as_str()  }}/upload/{{pasta.id_as_animals(args.hash_ids)}}"><i>{{pasta.id_as_animals(args
+    .hash_ids)}}</i></a>
   {% if args.public_path_as_str() != "" %}
   <button id="copy-url-button" class="small-button" style="margin-right: 0">
     Copy URL
@@ -86,7 +87,7 @@ justify-content: center; align-items: center;">
     justify-content: center; align-items: center;">
   <p style="font-size: small;">{{pasta.file.as_ref().unwrap().name()}}
     [{{pasta.file.as_ref().unwrap().size}}]</p>
-  <a href="{{ args.public_path_as_str()}}/file/{{pasta.id_as_animals(args)}}" id="download-link">
+  <a href="{{ args.public_path_as_str()}}/file/{{pasta.id_as_animals(args.hash_ids)}}" id="download-link">
     <button class="download-button" autofocus>
       Download
     </button>
@@ -97,12 +98,12 @@ justify-content: center; align-items: center;">
 
 {% if pasta.file.is_some() && pasta.file.as_ref().unwrap().is_image() &&
 pasta.file_embeddable() && !pasta.encrypt_client %}
-<img id="embed" src="{{ args.public_path_as_str()}}/file/{{pasta.id_as_animals(args)}}" height="300" />
+<img id="embed" src="{{ args.public_path_as_str()}}/file/{{pasta.id_as_animals(args.hash_ids)}}" height="300" />
 <span style="margin-left: auto; margin-right: auto; display: flex;
   justify-content: center; align-items: center;">
   <p style="font-size: small;">{{pasta.file.as_ref().unwrap().name()}}
     [{{pasta.file.as_ref().unwrap().size}}]</p>
-  <a href="{{ args.public_path_as_str()      }}/file/{{pasta.id_as_animals(args)}}" id="download-link" download>
+  <a href="{{ args.public_path_as_str()      }}/file/{{pasta.id_as_animals(args.hash_ids)}}" id="download-link" download>
     <button class="download-button" autofocus>
       Download
     </button>
@@ -113,12 +114,12 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
 
 {% if pasta.file.is_some() && pasta.file.as_ref().unwrap().is_video() &&
 pasta.file_embeddable() && !pasta.encrypt_client %}
-<video id="embed" controls src="{{ args.public_path_as_str()}}/file/{{pasta.id_as_animals(args)}}" height="300"></video>
+<video id="embed" controls src="{{ args.public_path_as_str()}}/file/{{pasta.id_as_animals(args.hash_ids)}}" height="300"></video>
 <span style="margin-left: auto; margin-right: auto; display: flex;
   justify-content: center; align-items: center;">
   <p style="font-size: small;">{{pasta.file.as_ref().unwrap().name()}}
     [{{pasta.file.as_ref().unwrap().size}}]</p>
-  <a href="{{ args.public_path_as_str()      }}/file/{{pasta.id_as_animals(args)}}" download id="download-link">
+  <a href="{{ args.public_path_as_str()      }}/file/{{pasta.id_as_animals(args.hash_ids)}}" download id="download-link">
     <button class="download-button">
       Download
     </button>
@@ -151,11 +152,11 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
   var content = `{{ pasta.content_escaped() }}`
   const contentElement = document.getElementById("code");
   const url = (`{{ args.short_path_as_str()}}` === "") ?
-          `{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals(args)}}` :
-          `{{ args.short_path_as_str()}}/p/{{pasta.id_as_animals(args)}}`
+          `{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals(args.hash_ids)}}` :
+          `{{ args.short_path_as_str()}}/p/{{pasta.id_as_animals(args.hash_ids)}}`
   const redirect_url = (`{{ args.short_path_as_str()}}` === "") ?
-          `{{ args.public_path_as_str() }}/url/{{pasta.id_as_animals(args)}}` :
-          `{{ args.short_path_as_str()}}/u/{{pasta.id_as_animals(args)}}`
+          `{{ args.public_path_as_str() }}/url/{{pasta.id_as_animals(args.hash_ids)}}` :
+          `{{ args.short_path_as_str()}}/u/{{pasta.id_as_animals(args.hash_ids)}}`
 
   const te = new TextEncoder();
 
@@ -247,7 +248,7 @@ pasta.file_embeddable() && !pasta.encrypt_client %}
     // {%- endif %}
     formData.append('password', key);
 
-    const response = await fetch('{{ args.public_path_as_str() }}/secure_file/{{ pasta.id_as_animals(args) }}', {
+    const response = await fetch('{{ args.public_path_as_str() }}/secure_file/{{ pasta.id_as_animals(args.hash_ids) }}', {
       method: 'POST',
       body: formData,
     })

@@ -26,9 +26,10 @@ struct IndexTemplate<'a> {
     status: String,
 }
 
-pub async fn index(State(data): State<AppState>) -> Result<impl IntoResponse, AppError> {
+pub async fn index(State(AppState{args,..}): State<AppState>) -> Result<impl IntoResponse,
+    AppError> {
     let index_html = IndexTemplate {
-        args: &data.args,
+        args: &args,
         status: String::from(""),
     }
     .render()?;
@@ -39,10 +40,12 @@ pub async fn index(State(data): State<AppState>) -> Result<impl IntoResponse, Ap
         .body(index_html)?)
 }
 
-pub async fn index_with_status(Path(status): Path<String>, State(data): State<AppState>) -> Result<impl IntoResponse,
+pub async fn index_with_status(Path(status): Path<String>, State(AppState{args,..}):
+State<AppState>) ->
+                                                                                      Result<impl IntoResponse,
     AppError> {
     let index_with_status = IndexTemplate {
-        args: &data.args,
+        args: &args,
         status,
     }
     .render()?;
@@ -80,7 +83,7 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64, args: &Args) -> i
 // TODO: form field order might need to be changed. In my testing the attachment
 // data is nestled between password encryption key etc <21-10-24, dvdsk>
 pub async fn create(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response<String>, AppError> {
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -98,7 +101,7 @@ pub async fn create(
         extension: String::from(""),
         private: false,
         readonly: false,
-        editable: data.args.editable,
+        editable: args.editable,
         hide_read_count: false,
         encrypt_server: false,
         encrypted_key: Some(String::from("")),
@@ -108,7 +111,7 @@ pub async fn create(
         burn_after_reads: 0,
         last_read: timenow,
         pasta_type: String::from(""),
-        expiration: expiration_to_timestamp(&data.args.default_expiry, timenow, &data.args),
+        expiration: expiration_to_timestamp(&args.default_expiry, timenow, &args),
     };
 
     let mut random_key: String = String::from("");
@@ -161,7 +164,7 @@ pub async fn create(
             "expiration" => {
                 while let Some(chunk) = field.try_next().await? {
                     new_pasta.expiration =
-                        expiration_to_timestamp(std::str::from_utf8(&chunk)?, timenow, &data.args);
+                        expiration_to_timestamp(std::str::from_utf8(&chunk)?, timenow, &args);
                 }
 
                 continue;
@@ -209,7 +212,7 @@ pub async fn create(
                 continue;
             }
             "file" => {
-                if data.args.no_file_upload {
+                if args.no_file_upload {
                     continue;
                 }
 
@@ -231,14 +234,14 @@ pub async fn create(
 
                 std::fs::create_dir_all(format!(
                     "{}/attachments/{}",
-                    data.args.data_dir,
-                    &new_pasta.id_as_animals(&data.args)
+                    args.data_dir,
+                    &new_pasta.id_as_animals(&args.hash_ids)
                 ))?;
 
                 let filepath = format!(
                     "{}/attachments/{}/{}",
-                    data.args.data_dir,
-                    &new_pasta.id_as_animals(&data.args),
+                    args.data_dir,
+                    &new_pasta.id_as_animals(&args.hash_ids),
                     &file.name()
                 );
 
@@ -247,8 +250,8 @@ pub async fn create(
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
                     if (new_pasta.encrypt_server
-                        && size > &data.args.max_file_size_encrypted_mb * 1024 * 1024)
-                        || size > &data.args.max_file_size_unencrypted_mb * 1024 * 1024
+                        && size > &args.max_file_size_encrypted_mb * 1024 * 1024)
+                        || size > &args.max_file_size_unencrypted_mb * 1024 * 1024
                     {
                         let repsonse = axum::response::Response::builder()
                             .status(StatusCode::BAD_REQUEST)
@@ -279,12 +282,12 @@ pub async fn create(
         .status(StatusCode::FOUND)
         .header(
             "Location",
-            format!("{}/incorrect", &data.args.public_path_as_str()),
+            format!("{}/incorrect", &args.public_path_as_str()),
         )
         .body("".to_string());
 
-    if data.args.readonly
-        && let Some(uploader_password_args) = data.args.uploader_password.as_ref()
+    if args.readonly
+        && let Some(uploader_password_args) = args.uploader_password.as_ref()
         && uploader_password != *uploader_password_args
         && let Ok(resp) = res
     {
@@ -311,8 +314,8 @@ pub async fn create(
     {
         let filepath = format!(
             "{}/attachments/{}/{}",
-            data.args.data_dir,
-            &new_pasta.id_as_animals(&data.args),
+            args.data_dir,
+            &new_pasta.id_as_animals(&args.hash_ids),
             &new_pasta_file.name()
         );
         if new_pasta.encrypt_client {
@@ -324,18 +327,18 @@ pub async fn create(
 
     let encrypt_server = new_pasta.encrypt_server;
     {
-        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+        let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
         pastas.push(new_pasta);
 
         for pasta in pastas.iter() {
             if pasta.id == id {
-                insert(Some(&pastas), Some(pasta), &data.args);
+                insert(Some(&pastas), Some(pasta), &args);
             }
         }
     }
 
-    let slug = if data.args.hash_ids {
+    let slug = if args.hash_ids {
         to_hashids(id)
     } else {
         to_animal_names(id)
@@ -351,7 +354,7 @@ pub async fn create(
             .status(StatusCode::FOUND)
             .header(
                 "Location",
-                format!("{}/upload/{}", data.args.public_path_as_str(), slug),
+                format!("{}/upload/{}", args.public_path_as_str(), slug),
             )
             .body("".to_string())?)
     }

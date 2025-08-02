@@ -13,29 +13,29 @@ use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
 
 pub async fn post_secure_file(
-    State(data): State<AppState>,
+    State(AppState{pastas, args}): State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<Response, AppError> {
     // get access to the pasta collection
 
-    let id = if data.args.hash_ids {
+    let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
     {
-        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+        let mut pastas = pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas, &data.args);
+        remove_expired(&mut pastas, &args);
     }
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock().expect("no microbin thread should panic");
+        let pastas = pastas.lock().expect("no microbin thread should panic");
         // find the index of the pasta in the collection based on u64 id
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id {
@@ -49,13 +49,13 @@ pub async fn post_secure_file(
     let password = auth::password_from_multipart(payload).await?;
 
     {
-        let pastas = data.pastas.lock().expect("no microbin thread should panic");
+        let pastas = pastas.lock().expect("no microbin thread should panic");
         if found {
             if let Some(ref pasta_file) = pastas[index].file {
                 let file = File::open(format!(
-                    "{}/attachments/{}/data.enc",
-                    &data.args.data_dir,
-                    pastas[index].id_as_animals(&data.args)
+                    "{}/attachments/{}/enc",
+                    &args.data_dir,
+                    pastas[index].id_as_animals(&args.hash_ids)
                 ))?;
 
                 // Not compatible with NamedFile from actix_files (it needs a File
@@ -85,9 +85,9 @@ pub async fn post_secure_file(
 
 pub async fn get_file(
     Path(id): Path<String>,
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
 ) -> Result<Response, AppError> {
-    let id_intern = if data.args.hash_ids {
+    let id_intern = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -95,16 +95,16 @@ pub async fn get_file(
 
     {
         // get access to the pasta collection
-        let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+        let mut pastas = pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas, &data.args);
+        remove_expired(&mut pastas, &args);
     }
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
     let mut found: bool = false;
     {
-        let pastas = data.pastas.lock().expect("no microbin thread should panic");
+        let pastas = pastas.lock().expect("no microbin thread should panic");
         for (i, pasta) in pastas.iter().enumerate() {
             if pasta.id == id_intern {
                 index = i;
@@ -114,7 +114,7 @@ pub async fn get_file(
         }
     }
 
-    let pastas = { data.pastas.lock().expect("no microbin thread should panic").clone() };
+    let pastas = { pastas.lock().expect("no microbin thread should panic").clone() };
     if found {
         if let Some(ref pasta_file) = pastas[index].file {
             if pastas[index].encrypt_server {
@@ -122,7 +122,7 @@ pub async fn get_file(
                     StatusCode::FOUND,
                     [(
                         header::LOCATION,
-                        format!("/auth_file/{}", pastas[index].id_as_animals(&data.args)),
+                        format!("/auth_file/{}", pastas[index].id_as_animals(&args.hash_ids)),
                     )],
                 )
                     .into_response());
@@ -131,8 +131,8 @@ pub async fn get_file(
             // Construct the path to the file
             let file_path = format!(
                 "{}/attachments/{}/{}",
-                &data.args.data_dir,
-                pastas[index].id_as_animals(&data.args),
+                &args.data_dir,
+                pastas[index].id_as_animals(&args.hash_ids),
                 pasta_file.name()
             );
             let file_path = PathBuf::from(file_path);
