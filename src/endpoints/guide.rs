@@ -12,10 +12,11 @@ struct Guide<'a> {
     args: &'a Args,
 }
 
-pub async fn guide(State(data): State<AppState>) -> Result<impl IntoResponse, AppError> {
+pub async fn guide(State(AppState{args, ..}): State<AppState>,) -> Result<impl IntoResponse,
+    AppError> {
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
-        .body(Guide { args: &data.args }.render()?)?)
+        .body(Guide { args: &args }.render()?)?)
 }
 
 pub fn guide_router() -> Router<AppState> {

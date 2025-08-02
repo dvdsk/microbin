@@ -7,7 +7,7 @@ use base64::engine::general_purpose;
 use reqwest::StatusCode;
 use crate::AppState;
 
-pub async fn auth_validator(State(data): State<AppState>, req: Request, next: Next) ->
+pub async fn auth_validator(State(AppState{args,..}): State<AppState>, req: Request, next: Next) ->
                                                                                   Result<Response,
     AppError> {
     let (username, password) = req
@@ -39,7 +39,7 @@ pub async fn auth_validator(State(data): State<AppState>, req: Request, next: Ne
     }
 
     if let Some(username) = username
-        && username != data.args.auth_admin_username
+        && username != args.auth_admin_username
     {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
@@ -47,7 +47,7 @@ pub async fn auth_validator(State(data): State<AppState>, req: Request, next: Ne
     }
 
     if let Some(password) = password
-        && password != data.args.auth_admin_password
+        && password != args.auth_admin_password
     {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)

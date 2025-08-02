@@ -13,25 +13,27 @@ struct AuthAdmin<'a> {
     status: String,
 }
 
-async fn auth_admin(State(data): State<AppState>) -> Result<impl IntoResponse, AppError> {
+async fn auth_admin(State(AppState{args,..}): State<AppState>,) -> Result<impl IntoResponse, 
+    AppError> {
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
         .body(
             AuthAdmin {
-                args: &data.args,
+                args: &args,
                 status: "".to_string(),
             }
             .render()?,
         )?)
 }
 
-async fn auth_admin_with_status(Path(status): Path<String>,  State(data): State<AppState>,) -> Result<impl IntoResponse,
+async fn auth_admin_with_status(Path(status): Path<String>,      State(AppState{args,..}): 
+State<AppState>) -> Result<impl IntoResponse,
     AppError> {
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
         .body(
             AuthAdmin {
-                args: &data.args,
+                args: &args,
                 status: status.to_string(),
             }
             .render()?,
