@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::args::ARGS;
 use crate::util::animalnumbers::to_animal_names;
 use crate::util::hashids::to_hashids;
 use crate::util::syntaxhighlighter::html_highlight;
@@ -75,8 +73,8 @@ pub struct Pasta {
 }
 
 impl Pasta {
-    pub fn id_as_animals(&self) -> String {
-        if ARGS.hash_ids {
+    pub fn id_as_animals(&self, hash_ids: &bool) -> String {
+        if *hash_ids {
             to_hashids(self.id)
         } else {
             to_animal_names(self.id)

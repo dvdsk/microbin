@@ -1,5 +1,4 @@
 use crate::Pasta;
-use crate::args::ARGS;
 use crate::error_handling::AppError;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
@@ -8,10 +7,10 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-
+use crate::args::Args;
 use super::db::delete;
 
-pub fn remove_expired(pastas: &mut Vec<Pasta>) {
+pub fn remove_expired(pastas: &mut Vec<Pasta>, args: &Args) {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -30,20 +29,20 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
         //  has been read in the last N days where N is the arg --gc-days OR N is 0 (no GC)
         if (p.expiration == 0 || p.expiration > timenow)
             && (p.read_count < p.burn_after_reads || p.burn_after_reads == 0)
-            && (p.last_read_days_ago() < ARGS.gc_days || ARGS.gc_days == 0)
+            && (p.last_read_days_ago() < args.gc_days || args.gc_days == 0)
         {
             // keep
             true
         } else {
             // remove from database
-            delete(None, Some(p.id));
+            delete(None, Some(p.id), args);
 
             // remove the file itself
             if let Some(file) = &p.file {
                 if fs::remove_file(format!(
                     "{}/attachments/{}/{}",
-                    ARGS.data_dir,
-                    p.id_as_animals(),
+                    args.data_dir,
+                    p.id_as_animals(&args.hash_ids),
                     file.name()
                 ))
                 .is_err()
@@ -54,8 +53,8 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>) {
                 // and remove the containing directory
                 if fs::remove_dir(format!(
                     "{}/attachments/{}/",
-                    ARGS.data_dir,
-                    p.id_as_animals()
+                    args.data_dir,
+                    p.id_as_animals(&args.hash_ids)
                 ))
                 .is_err()
                 {

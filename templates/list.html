@@ -42,16 +42,17 @@
                 <tr>
                     <td>
                         <a
-                            href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                            href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals(args.hash_ids)}}">{{pasta
+                            .id_as_animals(args.hash_ids)}}</a>
                     </td>
                     <td>
                         {% if args.public_path_as_str() != "" %}
                         {% if args.short_path_as_str() == "" %}
                         <a style="margin-right:1rem; cursor: pointer;" class="copy-button" null
-                            data-url="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">Copy</a>
+                            data-url="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals(args.hash_ids)}}">Copy</a>
                         {% else %}
                         <a style="margin-right:1rem; cursor: pointer;" class="copy-button" data-url="{{ args.short_path_as_str()
-                        }}/p/{{pasta.id_as_animals()}}">Copy</a>
+                        }}/p/{{pasta.id_as_animals(args.hash_ids)}}">Copy</a>
                         {% endif %}
                         {%- endif %}
                     </td>
@@ -64,11 +65,11 @@
                     <td>
                         {% if pasta.content != "" %}
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals()}}">Text</a>
+                            href="{{ args.public_path_as_str()}}/raw/{{pasta.id_as_animals(args.hash_ids)}}">Text</a>
                         {%- endif %}
                         {% if pasta.file.is_some() %}
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals()}}">
+                            href="{{ args.public_path_as_str() }}/file/{{pasta.id_as_animals(args.hash_ids)}}">
                             {% if pasta.file.as_ref().unwrap().is_image() %}
                             Image
                             {%- else if pasta.file.as_ref().unwrap().is_video() %}
@@ -83,11 +84,11 @@
                     <td>
                         {% if pasta.editable %}
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals()}}">Edit</a>
+                            href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals(args.hash_ids)}}">Edit</a>
                         {%- endif %}
                     </td>
                     <td>
-                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">Remove</a>
+                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals(args.hash_ids)}}">Remove</a>
                     </td>
                 </tr>
                 {%- endif %}
@@ -125,15 +126,16 @@
                 <tr>
                     <td>
                         <a
-                            href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                            href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals(args.hash_ids)}}">{{pasta
+                            .id_as_animals(args.hash_ids)}}</a>
                     </td>
                     <td>
                         {% if args.short_path_as_str() == "" %}
                         <a style="margin-right:1rem; cursor: pointer;" class="copy-button"
-                            data-url="{{ args.public_path_as_str()                    }}/url/{{pasta.id_as_animals()}}">Copy</a>
+                            data-url="{{ args.public_path_as_str()                    }}/url/{{pasta.id_as_animals(args.hash_ids)}}">Copy</a>
                         {% else %}
                         <a style="margin-right:1rem; cursor: pointer;" class="copy-button" data-url="{{ args.short_path_as_str()
-                        }}/u/{{pasta.id_as_animals()}}">Copy</a>
+                        }}/u/{{pasta.id_as_animals(args.hash_ids)}}">Copy</a>
                         {% endif %}
                     </td>
                     <td>
@@ -144,16 +146,16 @@
                     </td>
                     <td>
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/url/{{pasta.id_as_animals()}}">Redirect</a>
+                            href="{{ args.public_path_as_str() }}/url/{{pasta.id_as_animals(args.hash_ids)}}">Redirect</a>
                     </td>
                     <td>
                         {% if pasta.editable %}
                         <a style="margin-right:1rem"
-                            href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals()}}">Edit</a>
+                            href="{{ args.public_path_as_str() }}/edit/{{pasta.id_as_animals(args.hash_ids)}}">Edit</a>
                         {%- endif %}
                     </td>
                     <td>
-                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals()}}">Remove</a>
+                        <a href="{{ args.public_path_as_str() }}/remove/{{pasta.id_as_animals(args.hash_ids)}}">Remove</a>
                     </td>
                 </tr>
                 {%- endif %}

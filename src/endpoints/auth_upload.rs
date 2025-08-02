@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::args::{ARGS, Args};
+use crate::args::{Args};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::util::animalnumbers::to_u64;
@@ -24,15 +24,15 @@ struct AuthPasta<'a> {
 }
 
 pub async fn auth_upload(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -46,7 +46,7 @@ pub async fn auth_upload(
                 "text/html; charset=utf-8".parse().map_err(AppError::from)?,
             );
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status: String::from(""),
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -60,20 +60,20 @@ pub async fn auth_upload(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_upload_with_status(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -84,7 +84,7 @@ pub async fn auth_upload_with_status(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status,
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -98,20 +98,20 @@ pub async fn auth_upload_with_status(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_raw_pasta(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -122,7 +122,7 @@ pub async fn auth_raw_pasta(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status: String::from(""),
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -136,20 +136,20 @@ pub async fn auth_raw_pasta(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_raw_pasta_with_status(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -160,7 +160,7 @@ pub async fn auth_raw_pasta_with_status(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status,
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -173,20 +173,20 @@ pub async fn auth_raw_pasta_with_status(
     }
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_edit_private(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -197,7 +197,7 @@ pub async fn auth_edit_private(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status: String::from(""),
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -211,20 +211,20 @@ pub async fn auth_edit_private(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_edit_private_with_status(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -235,7 +235,7 @@ pub async fn auth_edit_private_with_status(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status,
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -248,20 +248,20 @@ pub async fn auth_edit_private_with_status(
     }
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_file(
-    data: State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -272,7 +272,7 @@ pub async fn auth_file(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status: String::from(""),
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -286,20 +286,20 @@ pub async fn auth_file(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_file_with_status(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -310,7 +310,7 @@ pub async fn auth_file_with_status(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status,
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -324,20 +324,20 @@ pub async fn auth_file_with_status(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_remove_private(
-    State(data): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = data.pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -348,7 +348,7 @@ pub async fn auth_remove_private(
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id,
                 status: String::from(""),
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -362,20 +362,20 @@ pub async fn auth_remove_private(
 
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     Ok((headers, body))
 }
 
 pub async fn auth_remove_private_with_status(
-    State(state): State<AppState>,
+    State(AppState{pastas,args}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = state.pastas.lock()?;
+    let mut pastas = pastas.lock()?;
 
-    remove_expired(&mut pastas);
+    remove_expired(&mut pastas, &args);
 
-    let intern_id = if ARGS.hash_ids {
+    let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
@@ -385,7 +385,7 @@ pub async fn auth_remove_private_with_status(
         if pasta.id == intern_id {
             let mut headers = HeaderMap::new();
             let body = AuthPasta {
-                args: &ARGS,
+                args: &args,
                 id: id.clone(),
                 status: status.clone(),
                 encrypted_key: pasta.encrypted_key.to_owned().unwrap_or_default(),
@@ -399,7 +399,7 @@ pub async fn auth_remove_private_with_status(
     }
 
     let mut headers = HeaderMap::new();
-    let body = ErrorTemplate { args: &ARGS }.render()?;
+    let body = ErrorTemplate { args: &args }.render()?;
     headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
     Ok((headers, body))
 }

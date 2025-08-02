@@ -1,13 +1,15 @@
-use crate::args::ARGS;
 use crate::error_handling::AppError;
-use axum::extract::{Multipart, Request};
+use axum::extract::{Multipart, Request, State};
 use axum::middleware::Next;
 use axum::response::Response;
 use base64::Engine;
 use base64::engine::general_purpose;
 use reqwest::StatusCode;
+use crate::AppState;
 
-pub async fn auth_validator(req: Request, next: Next) -> Result<Response, AppError> {
+pub async fn auth_validator(State(AppState{args,..}): State<AppState>, req: Request, next: Next) ->
+                                                                                  Result<Response,
+    AppError> {
     let (username, password) = req
         .headers()
         .get("authorization")
@@ -37,7 +39,7 @@ pub async fn auth_validator(req: Request, next: Next) -> Result<Response, AppErr
     }
 
     if let Some(username) = username
-        && username != ARGS.auth_admin_username
+        && username != args.auth_admin_username
     {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
@@ -45,7 +47,7 @@ pub async fn auth_validator(req: Request, next: Next) -> Result<Response, AppErr
     }
 
     if let Some(password) = password
-        && password != ARGS.auth_admin_password
+        && password != args.auth_admin_password
     {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)

@@ -4,15 +4,15 @@ use std::{
 };
 
 use serde_json::json;
+use crate::args::Args;
 
-use crate::args::ARGS;
-
-pub fn start_telemetry_thread() {
+pub fn start_telemetry_thread(args: &Args) {
     // Start a new thread that calls the send_telemetry function every 24 hours
-    thread::spawn(|| {
+    let args = args.clone();
+    thread::spawn(move || {
         let mut last_run = Instant::now();
         loop {
-            let _ = send_telemetry();
+            let _ = send_telemetry(&args);
 
             // Wait for 24 hours since the last run
             let next_run = last_run + Duration::from_secs(60 * 60 * 24);
@@ -25,9 +25,9 @@ pub fn start_telemetry_thread() {
     });
 }
 
-fn send_telemetry() -> Result<(), reqwest::Error> {
+fn send_telemetry(args: &Args) -> Result<(), reqwest::Error> {
     // Convert the telemetry object to JSON
-    let json_body = json!(ARGS.to_owned().without_secrets().to_owned()).to_string();
+    let json_body = json!(args.to_owned().without_secrets().to_owned()).to_string();
 
     // Send the telemetry data to the API
     crate::util::http_client::new()

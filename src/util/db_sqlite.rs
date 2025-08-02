@@ -3,22 +3,23 @@ use std::sync::Once;
 use bytesize::ByteSize;
 use rusqlite::{Connection, params};
 
-use crate::{Pasta, args::ARGS, pasta::PastaFile};
+use crate::{Pasta, pasta::PastaFile};
+use crate::args::Args;
 
-pub fn read_all() -> Vec<Pasta> {
+pub fn read_all(args: &Args) -> Vec<Pasta> {
     static INIT_SQLITE: Once = Once::new();
     INIT_SQLITE.call_once(|| {
         // lets not migrate every read
         // read happens before any update therefore
         // its safe to only migrate here
-        create_table();
-        migrate();
+        create_table(args);
+        migrate(args);
     });
-    select_all_from_db()
+    select_all_from_db(args)
 }
 
-fn create_table() {
-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+fn create_table(args: &Args) {
+    let conn = Connection::open(format!("{}/database.sqlite", args.data_dir))
         .expect("Failed to open SQLite database!");
 
     conn.execute(
@@ -48,8 +49,8 @@ fn create_table() {
     .expect("Failed to create SQLite table for Pasta!");
 }
 
-fn migrate() {
-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+fn migrate(args: &Args) {
+    let conn = Connection::open(format!("{}/database.sqlite", args.data_dir))
         .expect("Failed to open SQLite database!");
 
     let res = conn.execute(
@@ -67,8 +68,8 @@ ADD hide_read_count INTEGER NOT NULL DEFAULT 0",
     }
 }
 
-fn select_all_from_db() -> Vec<Pasta> {
-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+fn select_all_from_db(args: &Args) -> Vec<Pasta> {
+    let conn = Connection::open(format!("{}/database.sqlite", args.data_dir))
         .expect("Failed to open SQLite database!");
 
     let mut stmt = conn
@@ -119,8 +120,8 @@ fn select_all_from_db() -> Vec<Pasta> {
         .collect::<Vec<Pasta>>()
 }
 
-pub fn insert(pasta: &Pasta) {
-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+pub fn insert(pasta: &Pasta, args: &Args) {
+    let conn = Connection::open(format!("{}/database.sqlite", args.data_dir))
         .expect("Failed to open SQLite database!");
 
     conn.execute(
@@ -194,8 +195,8 @@ pub fn insert(pasta: &Pasta) {
     .expect("Failed to insert pasta.");
 }
 
-pub fn update(pasta: &Pasta) {
-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+pub fn update(pasta: &Pasta, args: &Args) {
+    let conn = Connection::open(format!("{}/database.sqlite", args.data_dir))
         .expect("Failed to open SQLite database!");
 
     conn.execute(
@@ -242,8 +243,8 @@ pub fn update(pasta: &Pasta) {
     .expect("Failed to update pasta.");
 }
 
-pub fn delete_by_id(id: u64) {
-    let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
+pub fn delete_by_id(id: u64, args: &Args) {
+    let conn = Connection::open(format!("{}/database.sqlite", args.data_dir))
         .expect("Failed to open SQLite database!");
 
     conn.execute(
