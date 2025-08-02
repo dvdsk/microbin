@@ -31,7 +31,7 @@ fn send_telemetry(args: &Args) -> Result<(), reqwest::Error> {
 
     // Send the telemetry data to the configured API endpoint
     crate::util::http_client::new()
-        .post(&ARGS.telemetry_url)
+        .post(&args.telemetry_url)
         .header("Content-Type", "application/json")
         .body(json_body)
         .send()?;

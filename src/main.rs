@@ -76,7 +76,7 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
 
-    Builder::new()
+    Builder::from_env("MICROBIN_LOG")
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -115,7 +115,7 @@ async fn main() -> std::io::Result<()> {
     };
 
     // Start background cleanup thread for expired pastes
-    start_cleanup_thread(Arc::clone(&app_state.pastas));
+    start_cleanup_thread(Arc::clone(&app_state.pastas), args.clone());
 
     let mut router = Router::new()
         .merge(create_routes())
@@ -132,7 +132,7 @@ async fn main() -> std::io::Result<()> {
         .fallback(not_found)
         .with_state(app_state.clone());
 
-    if !args.enable_telemetry {
+    if args.enable_telemetry {
         start_telemetry_thread(&args);
     }
 
@@ -144,11 +144,11 @@ async fn main() -> std::io::Result<()> {
     }
 
     // Set body limit to the larger of the two max file sizes plus some overhead for multipart data
-    let max_size = std::cmp::max(ARGS.max_file_size_encrypted_mb, ARGS.max_file_size_unencrypted_mb);
+    let max_size = std::cmp::max(args.max_file_size_encrypted_mb, args.max_file_size_unencrypted_mb);
     let body_limit = (max_size + 10) * 1024 * 1024; // Add 10MB overhead for multipart encoding
     
     log::info!("Configured file size limits - encrypted: {}MB, unencrypted: {}MB", 
-               ARGS.max_file_size_encrypted_mb, ARGS.max_file_size_unencrypted_mb);
+               args.max_file_size_encrypted_mb, args.max_file_size_unencrypted_mb);
     log::info!("Setting HTTP body limit to: {}MB ({} bytes)", 
                (max_size + 10), body_limit);
     

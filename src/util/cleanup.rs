@@ -4,9 +4,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{pasta::Pasta, util::misc::remove_expired};
+use crate::{pasta::Pasta, util::misc::remove_expired, args::Args};
 
-pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>) {
+pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>, args: Args) {
     // Start a new thread that calls the cleanup function every hour
     thread::spawn(move || {
         let mut last_run = Instant::now();
@@ -25,7 +25,7 @@ pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>) {
             match app_state.lock() {
                 Ok(mut pastas) => {
                     let count_before = pastas.len();
-                    remove_expired(&mut pastas);
+                    remove_expired(&mut pastas, &args);
                     let count_after = pastas.len();
                     let removed_count = count_before - count_after;
                     

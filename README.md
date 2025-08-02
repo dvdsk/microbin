@@ -99,7 +99,7 @@ You can use MicroBin:
 
 ## Logging and Debugging
 
-MicroBin supports configurable logging levels for debugging and troubleshooting using the standard Rust `RUST_LOG` environment variable.
+MicroBin supports configurable logging levels for debugging and troubleshooting using the `MICROBIN_LOG` environment variable.
 
 ### Available Log Levels
 
@@ -113,25 +113,25 @@ MicroBin supports configurable logging levels for debugging and troubleshooting 
 
 ```bash
 # Show debug level logs
-export RUST_LOG=debug
+export MICROBIN_LOG=debug
 
 # Show trace level logs (most verbose)  
-export RUST_LOG=trace
+export MICROBIN_LOG=trace
 
 # Show only info level logs from microbin modules
-export RUST_LOG=microbin=info
+export MICROBIN_LOG=microbin=info
 
 # Multiple modules with different levels
-export RUST_LOG=microbin=debug,tower_http=info
+export MICROBIN_LOG=microbin=debug,tower_http=info
 ```
 
 ### Docker Usage
 
-Set the `RUST_LOG` environment variable in your `compose.yaml` or docker run command:
+Set the `MICROBIN_LOG` environment variable in your `compose.yaml` or docker run command:
 
 ```yaml
 environment:
-  RUST_LOG: debug
+  MICROBIN_LOG: debug
 ```
 
 This is particularly useful for:

@@ -258,7 +258,7 @@ pub async fn create(
                 let mut size = 0;
                 let mut last_logged_mb = 0;
                 log::debug!("Starting file upload for: {}, max sizes - encrypted: {}MB, unencrypted: {}MB", 
-                           file.name(), ARGS.max_file_size_encrypted_mb, ARGS.max_file_size_unencrypted_mb);
+                           file.name(), args.max_file_size_encrypted_mb, args.max_file_size_unencrypted_mb);
                 while let Some(chunk) = field.try_next().await? {
                     size += chunk.len();
                     let current_mb = size / (1024 * 1024);
