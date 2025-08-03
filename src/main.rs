@@ -28,10 +28,16 @@ use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use tower_http::normalize_path::NormalizePathLayer;
+use crate::db::Database;
+use crate::sqlite_db::SQLiteDB;
+use crate::util::auth::auth_validator;
 
 pub mod args;
 mod error_handling;
 pub mod pasta;
+mod db;
+mod sqlite_db;
+mod mapper;
 
 pub mod util {
     pub mod animalnumbers;
@@ -69,6 +75,7 @@ pub mod endpoints {
 pub struct AppState {
     pub pastas: Arc<Mutex<Vec<Pasta>>>,
     pub args: Args,
+    pub db: Arc<Box<dyn Database + Send + Sync>>,
 }
 
 #[tokio::main]
@@ -108,8 +115,13 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    let db = SQLiteDB::new(&args.data_dir).await.map_err(|c| {
+        log::error!("Couldn't open database: {:?}", c);
+        std::io::Error::new(std::io::ErrorKind::Other, "Database error")
+    })?;
     let app_state = AppState {
         pastas: Arc::new(Mutex::new(read_all(&args))),
+        db: Arc::new(Box::new(db)),
         args: args.clone(),
     };
 

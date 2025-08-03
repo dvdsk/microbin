@@ -1,5 +1,5 @@
-use crate::AppState;
-use crate::args::Args;
+use crate::{db, AppState};
+use crate::args::{ Args};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
@@ -25,7 +25,7 @@ struct PastaTemplate<'a> {
 }
 
 fn pastaresponse(
-    AppState { pastas, args }: AppState,
+    AppState{pastas,args, db}: AppState,
     id: String,
     password: String,
 ) -> Result<impl IntoResponse, AppError> {
@@ -37,9 +37,6 @@ fn pastaresponse(
     } else {
         to_u64(&id).unwrap_or(0)
     };
-
-    // remove expired pastas (including this one if needed)
-    clean_up_expired_pastes(&mut pastas, &args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;
@@ -168,10 +165,7 @@ pub async fn getshortpasta(
     pastaresponse(data, id, String::from(""))
 }
 
-fn urlresponse(
-    AppState { pastas, args }: AppState,
-    id: String,
-) -> Result<impl IntoResponse, AppError> {
+fn urlresponse(AppState{pastas,args, db}: AppState, id: String) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
     let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
@@ -260,7 +254,7 @@ pub async fn shortredirecturl(
 }
 
 pub async fn getrawpasta(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState{pastas,args, db}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
@@ -349,7 +343,7 @@ pub async fn getrawpasta(
 }
 
 pub async fn postrawpasta(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState{pastas,args, db}): State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<impl IntoResponse, AppError> {

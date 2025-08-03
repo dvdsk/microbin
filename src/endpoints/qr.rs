@@ -1,11 +1,11 @@
-use crate::AppState;
-use crate::args::Args;
+use crate::{db, AppState};
+use crate::args::{Args};
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::animalnumbers::to_u64;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{self, clean_up_expired_pastes};
+use crate::util::misc::{self};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Path, State};
@@ -22,7 +22,7 @@ struct QRTemplate<'a> {
 }
 
 pub async fn getqr(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState{pastas,args, db}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
@@ -33,9 +33,6 @@ pub async fn getqr(
     } else {
         to_u64(&id).unwrap_or(0)
     };
-
-    // remove expired pastas (including this one if needed)
-    clean_up_expired_pastes(&mut pastas, &args);
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;

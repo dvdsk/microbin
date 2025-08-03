@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::{db, AppState};
 use crate::error_handling::AppError;
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
 
 pub async fn post_secure_file(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState{pastas, args, db}): State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<Response, AppError> {
@@ -83,20 +83,13 @@ pub async fn post_secure_file(
 
 pub async fn get_file(
     Path(id): Path<String>,
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState{pastas,args, db}): State<AppState>,
 ) -> Result<Response, AppError> {
     let id_intern = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
-
-    {
-        // get access to the pasta collection
-        let mut pastas = pastas.lock().expect("no microbin thread should panic");
-        // remove expired pastas (including this one if needed)
-        clean_up_expired_pastes(&mut pastas, &args);
-    }
 
     // find the index of the pasta in the collection based on u64 id
     let mut index: usize = 0;

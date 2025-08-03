@@ -37,7 +37,7 @@ pub async fn get_admin(
 }
 
 pub async fn post_admin(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState{pastas,args,db}): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response, AppError> {
     let mut username = String::from("");

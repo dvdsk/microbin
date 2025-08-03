@@ -72,6 +72,31 @@ pub struct Pasta {
     pub pasta_type: String,
 }
 
+impl From<Pasta> for entity::pasta::Model {
+    fn from(pasta: Pasta) -> Self {
+        entity::pasta::Model {
+            id: pasta.id as i64,
+            content: pasta.content,
+            file_name: pasta.file.clone().map(|f| f.name),
+            file_size: pasta.file.map(|f| f.size.as_u64()).map(|u| u as i64),
+            extension: pasta.extension,
+            read_only: pasta.readonly,
+            private: pasta.private,
+            editable: i32::from(pasta.editable),
+            encrypt_server: i32::from(pasta.encrypt_server),
+            encrypt_client: i32::from(pasta.encrypt_client),
+            encrypted_key: pasta.encrypted_key,
+            created: pasta.created,
+            expiration: pasta.expiration,
+            last_read: pasta.last_read,
+            read_count: pasta.read_count as i64,
+            burn_after_reads: pasta.burn_after_reads as i64,
+            pasta_type: pasta.pasta_type,
+            hide_read_count: pasta.hide_read_count,
+        }
+    }
+}
+
 impl Pasta {
     pub fn id_as_animals(&self, hash_ids: &bool) -> String {
         if *hash_ids {

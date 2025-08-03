@@ -1,5 +1,5 @@
-use crate::AppState;
-use crate::args::Args;
+use crate::{db, AppState};
+use crate::args::{Args};
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::misc::clean_up_expired_pastes;
@@ -15,9 +15,7 @@ struct ListTemplate<'a> {
     args: &'a Args,
 }
 
-pub async fn list(
-    State(AppState { args, pastas }): State<AppState>,
-) -> Result<impl IntoResponse, AppError> {
+pub async fn list(State(AppState{args,pastas, db}): State<AppState>) -> Result<impl IntoResponse, AppError> {
     if args.no_listing {
         return Ok((
             StatusCode::FOUND,
@@ -28,7 +26,6 @@ pub async fn list(
 
     let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-    clean_up_expired_pastes(&mut pastas, &args);
 
     // sort pastas in reverse-chronological order of creation time
     pastas.sort_by(|a, b| b.created.cmp(&a.created));
