@@ -9,8 +9,10 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use db::database::Database;
+use crate::args::Args;
 
-pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
+pub fn clean_up_expired_pastes(args: &Args, db: Box<dyn Database>) -> Result<(), AppError> {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -20,7 +22,9 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
         }
     } as i64;
 
-    pastas.retain(|p| {
+    let pastas = db.find_all_pastas()?.iter().map(Pasta::from).collect::<Vec<Pasta>>();
+
+    for p in pastas {
         // keep if:
         //  expiration is `never` or not reached
         //  AND
@@ -32,8 +36,10 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
             && (p.last_read_days_ago() < args.gc_days || args.gc_days == 0)
         {
             // keep
-            true
+            continue;
         } else {
+            // remove from database
+            db.delete_pasta(&p.id)?;
             log::debug!(
                 "Removing expired pasta ID: {} ({})",
                 p.id,
@@ -89,9 +95,9 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
                     log::debug!("Successfully deleted directory: {}", dir_path);
                 }
             }
-            false
         }
-    });
+    }
+    Ok(())
 }
 
 pub fn string_to_qr_svg(str: &str) -> String {

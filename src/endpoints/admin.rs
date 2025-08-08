@@ -37,7 +37,7 @@ pub async fn get_admin(
 }
 
 pub async fn post_admin(
-    State(AppState{pastas,args,db}): State<AppState>,
+    State(AppState{args,db}): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response, AppError> {
     let mut username = String::from("");
@@ -77,15 +77,9 @@ pub async fn post_admin(
             .into_response());
     }
 
-    let pastas = {
-        let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
-        clean_up_expired_pastes(&mut pastas, &args);
-
-        // sort pastas in reverse-chronological order of creation time
-        pastas.sort_by(|a, b| b.created.cmp(&a.created));
-        pastas.to_vec()
-    };
+    let mut pastas = db.find_all_pastas()?.iter().map(Pasta::from)
+        .collect::<Vec<Pasta>>();
+    pastas.sort_by(|a,b |b.created.cmp(&a.created));
 
     // todo status report more sophisticated
     let mut status = "OK";

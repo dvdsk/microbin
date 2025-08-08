@@ -1,5 +1,6 @@
-use crate::{db, AppState};
+use crate::AppState;
 use crate::error_handling::AppError;
+use crate::pasta::Pasta;
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::clean_up_expired_pastes;
@@ -13,11 +14,13 @@ use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
 
 pub async fn post_secure_file(
-    State(AppState{pastas, args, db}): State<AppState>,
+    State(AppState { args, db }): State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<Response, AppError> {
     // get access to the pasta collection
+
+    let password = auth::password_from_multipart(payload).await?;
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -25,65 +28,59 @@ pub async fn post_secure_file(
         to_u64(&id).unwrap_or(0)
     };
 
-    {
-        let mut pastas = pastas.lock().expect("no microbin thread should panic");
-        // remove expired pastas (including this one if needed)
-        clean_up_expired_pastes(&mut pastas, &args);
-    }
-
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    {
-        let pastas = pastas.lock().expect("no microbin thread should panic");
-        // find the index of the pasta in the collection based on u64 id
-        for (i, pasta) in pastas.iter().enumerate() {
-            if pasta.id == id {
-                index = i;
-                found = true;
-                break;
-            }
+    let pasta_entity = match db.get_pasta(&id)? {
+        Some(pasta) => Ok(pasta),
+        None => {
+            return Ok((StatusCode::NOT_FOUND).into_response());
         }
-    }
+    }?;
 
-    let password = auth::password_from_multipart(payload).await?;
 
-    {
-        let pastas = pastas.lock().expect("no microbin thread should panic");
-        if found && let Some(ref pasta_file) = pastas[index].file {
-            let file = File::open(format!(
-                "{}/attachments/{}/enc",
-                &args.data_dir,
-                pastas[index].id_as_animals(&args.hash_ids)
-            ))?;
 
-            // Not compatible with NamedFile from actix_files (it needs a File
-            // to work therefore secure files do not support streaming
-            let decrypted_data: Vec<u8> = decrypt_file(&password, &file)?;
 
-            // Set the content type based on the file extension
-            let content_type = mime_guess::from_path(&pasta_file.name)
-                .first_or_octet_stream()
-                .to_string();
+    let pasta: Pasta = pasta_entity.into();
 
-            // Create a response with the decrypted data
-            let response = Response::builder()
-                .status(StatusCode::OK)
-                .header("Content-Type", content_type)
-                .header(
-                    "Content-Disposition",
-                    format!("attachment; filename=\"{}\"", pasta_file.name()),
-                )
-                .body(decrypted_data.into())?;
-            return Ok(response);
+    let pasta_file = match pasta.file {
+        Some(pasta_file) => {
+            Ok(pasta_file)
         }
-    }
-    Ok((StatusCode::NOT_FOUND).into_response())
+        None => {
+            return Ok((StatusCode::NOT_FOUND).into_response());
+        }
+    }?;
+
+
+
+    let file = File::open(format!(
+        "{}/attachments/{}/enc",
+        &args.data_dir,
+        pasta.id_as_animals(&args.hash_ids)
+    ))?;
+
+    // Not compatible with NamedFile from actix_files (it needs a File
+    // to work therefore secure files do not support streaming
+    let decrypted_data: Vec<u8> = decrypt_file(&password, &file)?;
+
+    // Set the content type based on the file extension
+    let content_type = mime_guess::from_path(&pasta_file.name)
+        .first_or_octet_stream()
+        .to_string();
+
+    // Create a response with the decrypted data
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", content_type)
+        .header(
+            "Content-Disposition",
+            format!("attachment; filename=\"{}\"", pasta_file.name()),
+        )
+        .body(decrypted_data.into())?;
+    Ok(response)
 }
 
 pub async fn get_file(
     Path(id): Path<String>,
-    State(AppState{pastas,args, db}): State<AppState>,
+    State(AppState {args, db }): State<AppState>,
 ) -> Result<Response, AppError> {
     let id_intern = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -91,37 +88,38 @@ pub async fn get_file(
         to_u64(&id).unwrap_or(0)
     };
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    {
-        let pastas = pastas.lock().expect("no microbin thread should panic");
-        for (i, pasta) in pastas.iter().enumerate() {
-            if pasta.id == id_intern {
-                index = i;
-                found = true;
-                break;
-            }
+    let pasta_entity = match db.get_pasta(&id_intern)? {
+        Some(pasta) => Ok(pasta),
+        None => {
+            return Ok((StatusCode::NOT_FOUND).into_response());
         }
-    }
+    }?;
 
-    let pastas = {
-        pastas
-            .lock()
-            .expect("no microbin thread should panic")
-            .clone()
-    };
-    if found && let Some(ref pasta_file) = pastas[index].file {
-        if pastas[index].encrypt_server {
-            return Ok((
-                StatusCode::FOUND,
-                [(
-                    header::LOCATION,
-                    format!("/auth_file/{}", pastas[index].id_as_animals(&args.hash_ids)),
-                )],
-            )
-                .into_response());
+
+
+
+    let pasta: Pasta = pasta_entity.into();
+
+    let pasta_file = match pasta.file {
+        Some(pasta_file) => {
+            Ok(pasta_file)
         }
+        None => {
+            return Ok((StatusCode::NOT_FOUND).into_response());
+        }
+    }?;
+
+        if let Some(ref pasta_file) = pastas[index].file {
+            if pastas[index].encrypt_server {
+                return Ok((
+                    StatusCode::FOUND,
+                    [(
+                        header::LOCATION,
+                        format!("/auth_file/{}", pastas[index].id_as_animals(&args.hash_ids)),
+                    )],
+                )
+                    .into_response());
+            }
 
         // Construct the path to the file
         let file_path = format!(

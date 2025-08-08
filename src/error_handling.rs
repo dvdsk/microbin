@@ -8,6 +8,7 @@ use reqwest::header::InvalidHeaderValue;
 use std::fmt::Display;
 use std::str::Utf8Error;
 use std::sync::{MutexGuard, PoisonError};
+use db::db::error::DBError;
 
 #[derive(Debug)]
 pub struct AppError {
@@ -26,6 +27,19 @@ impl AppError {
         AppError {
             message: message.into(),
             code: StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+
+impl From<DBError> for AppError {
+    fn from(error: DBError) -> Self {
+        log::warn!("Database error: {error}");
+        AppError {
+            message: "An error occurred while accessing the database. Please check the server logs \
+            if you are the server admin"
+                .to_string(),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

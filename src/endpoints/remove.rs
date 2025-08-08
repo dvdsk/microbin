@@ -4,7 +4,6 @@ use crate::error_handling::AppError;
 use crate::pasta::PastaFile;
 use crate::util::animalnumbers::to_u64;
 use crate::util::auth;
-use crate::util::db::delete;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, remove_expired};
 use askama::Template;
@@ -17,10 +16,9 @@ use reqwest::header;
 use std::fs;
 
 pub async fn remove(
-    State(AppState {pastas,args, db}): State<AppState>,
+    State(AppState {args, db}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut pastas =  pastas.lock().expect("no microbin thread should panic");
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -28,6 +26,7 @@ pub async fn remove(
         to_u64(&id).unwrap_or(0)
     };
 
+    let pastas  = db.find_all_pastas()?.iter().map();
     for (i, pasta) in pastas.iter().enumerate() {
         if pasta.id == id {
             // if it's encrypted or read-only, it needs a password to be deleted

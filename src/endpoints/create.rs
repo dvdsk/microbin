@@ -2,7 +2,6 @@ use crate::args::Args;
 use crate::error_handling::AppError;
 use crate::pasta::PastaFile;
 use crate::util::animalnumbers::to_animal_names;
-use crate::util::db::insert;
 use crate::util::hashids::to_hashids;
 use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
 use crate::{AppState, Pasta};
@@ -84,7 +83,7 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64, args: &Args) -> i
 // TODO: form field order might need to be changed. In my testing the attachment
 // data is nestled between password encryption key etc <21-10-24, dvdsk>
 pub async fn create(
-    State(AppState{pastas,args, db}): State<AppState>,
+    State(AppState{args, db}): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response<String>, AppError> {
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -363,17 +362,13 @@ pub async fn create(
     }
 
     let encrypt_server = new_pasta.encrypt_server;
-    {
-        let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
-        pastas.push(new_pasta);
-
-        for pasta in pastas.iter() {
-            if pasta.id == id {
-                insert(Some(&pastas), Some(pasta), &args);
-            }
-        }
+    let found_pasta = db.get_pasta(&new_pasta.id)?;
+    if found_pasta.is_some() {
+        log::error!("Pasta with id {} already exists!", new_pasta.id);
+        return Ok(res?);
     }
+
+    db.insert_pasta(new_pasta.into())?;
 
     let slug = if args.hash_ids {
         to_hashids(id)

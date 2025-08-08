@@ -2,7 +2,6 @@ use crate::args::Args;
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::util::animalnumbers::to_u64;
-use crate::util::db::update;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::{decrypt, encrypt, remove_expired};
 use crate::{AppState, Pasta};
@@ -24,10 +23,9 @@ struct EditTemplate<'a> {
 }
 
 pub async fn get_edit(
-    State(AppState{args,pastas, db}): State<AppState>,
+    State(AppState{args,db}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -35,8 +33,10 @@ pub async fn get_edit(
         to_u64(&id).unwrap_or(0)
     };
 
-    for pasta in pastas.iter() {
-        if pasta.id == id {
+    let found_pasta = db.get_pasta(&id)?;
+    match found_pasta {
+        Some(pasta)=> {
+            let pasta = pasta.into();
             if !pasta.editable {
                 return Ok((
                     StatusCode::FOUND,
@@ -61,7 +61,7 @@ pub async fn get_edit(
                     .into_response());
             }
 
-            return Ok((
+            Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 EditTemplate {
@@ -70,23 +70,24 @@ pub async fn get_edit(
                     path: &String::from("edit"),
                     status: &String::from(""),
                 }
-                .render()
-                .map_err(AppError::from)?,
+                    .render()
+                    .map_err(AppError::from)?,
             )
-                .into_response());
+                .into_response())
+        }
+        None=> {
+            Ok((
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
+                ErrorTemplate { args: &args }.render()?,
+            )
+                .into_response())
         }
     }
-
-    Ok((
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &args }.render()?,
-    )
-        .into_response())
 }
 
 pub async fn get_edit_with_status(
-    State(AppState{args,pastas, db}): State<AppState>,
+    State(AppState{args,db}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<axum::response::Response, AppError> {
     let mut pastas = pastas.lock().expect("no microbin thread should panic");

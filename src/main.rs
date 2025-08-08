@@ -15,9 +15,6 @@ use crate::endpoints::remove::remove_router;
 use crate::endpoints::static_resources;
 use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
-use crate::util::auth::auth_validator;
-use crate::util::cleanup::start_cleanup_thread;
-use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
 use axum::extract::DefaultBodyLimit;
 use axum::{Router, middleware};
@@ -28,25 +25,17 @@ use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use tower_http::normalize_path::NormalizePathLayer;
-use crate::db::Database;
-use crate::sqlite_db::SQLiteDB;
+use ::db::database::{get_database, Database};
 use crate::util::auth::auth_validator;
 
 pub mod args;
 mod error_handling;
 pub mod pasta;
-mod db;
-mod sqlite_db;
-mod mapper;
 
 pub mod util {
     pub mod animalnumbers;
     pub mod auth;
     pub mod cleanup;
-    pub mod db;
-    pub mod db_json;
-    #[cfg(feature = "default")]
-    pub mod db_sqlite;
     pub mod hashids;
     pub mod http_client;
     pub mod misc;
@@ -73,7 +62,6 @@ pub mod endpoints {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pastas: Arc<Mutex<Vec<Pasta>>>,
     pub args: Args,
     pub db: Arc<Box<dyn Database + Send + Sync>>,
 }
@@ -81,6 +69,7 @@ pub struct AppState {
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
+
 
     Builder::from_env("MICROBIN_LOG")
         .format(|buf, record| {
@@ -94,11 +83,7 @@ async fn main() -> std::io::Result<()> {
         })
         .init();
 
-    log::info!(
-        "MicroBin starting on http://{}:{}",
-        args.bind.to_string(),
-        args.port.to_string()
-    );
+
 
     match fs::create_dir_all(format!("{}/public", args.data_dir)) {
         Ok(dir) => dir,
@@ -115,13 +100,10 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let db = SQLiteDB::new(&args.data_dir).await.map_err(|c| {
-        log::error!("Couldn't open database: {:?}", c);
-        std::io::Error::new(std::io::ErrorKind::Other, "Database error")
-    })?;
+    let db_args = args.clone();
+    let db = get_database(db_args.into());
     let app_state = AppState {
-        pastas: Arc::new(Mutex::new(read_all(&args))),
-        db: Arc::new(Box::new(db)),
+        db: Arc::new(db),
         args: args.clone(),
     };
 
@@ -175,7 +157,11 @@ async fn main() -> std::io::Result<()> {
         .layer(NormalizePathLayer::trim_trailing_slash());
 
     let tcp = tokio::net::TcpListener::bind((args.bind, args.port)).await?;
-
+    log::info!(
+        "MicroBin starting on http://{}:{}",
+        args.bind.to_string(),
+        args.port.to_string()
+    );
     axum::serve(tcp, app).await?;
     Ok(())
 }

@@ -23,12 +23,11 @@ struct AuthPasta<'a> {
 }
 
 pub async fn auth_upload(
-    State(AppState{pastas,args, db}): State<AppState>,
+    State(AppState{args, db}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
     let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
 
     let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -63,13 +62,11 @@ pub async fn auth_upload(
 }
 
 pub async fn auth_upload_with_status(
-    State(AppState{pastas,args, db}): State<AppState>,
+    State(AppState{args, db}): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
     let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
-    clean_up_expired_pastes(&mut pastas, &args);
 
     let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -101,13 +98,11 @@ pub async fn auth_upload_with_status(
 }
 
 pub async fn auth_raw_pasta(
-    State(AppState{pastas,args, db}): State<AppState>,
+    State(AppState{args, db}): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
-    clean_up_expired_pastes(&mut pastas, &args);
+    let pasta = db.get_pasta(id);
 
     let intern_id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
