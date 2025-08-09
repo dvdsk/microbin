@@ -2,13 +2,13 @@ use crate::pasta::Pasta;
 use axum::extract::multipart::MultipartError;
 use axum::http;
 use axum::response::{IntoResponse, Response};
+use db::db::error::DBError;
 use magic_crypt::MagicCryptError;
 use reqwest::StatusCode;
 use reqwest::header::InvalidHeaderValue;
 use std::fmt::Display;
 use std::str::Utf8Error;
 use std::sync::{MutexGuard, PoisonError};
-use db::db::error::DBError;
 
 #[derive(Debug)]
 pub struct AppError {
@@ -31,14 +31,14 @@ impl AppError {
     }
 }
 
-
 impl From<DBError> for AppError {
     fn from(error: DBError) -> Self {
         log::warn!("Database error: {error}");
         AppError {
-            message: "An error occurred while accessing the database. Please check the server logs \
+            message:
+                "An error occurred while accessing the database. Please check the server logs \
             if you are the server admin"
-                .to_string(),
+                    .to_string(),
             code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

@@ -2,6 +2,7 @@ use super::db::delete;
 use crate::Pasta;
 use crate::args::Args;
 use crate::error_handling::AppError;
+use db::database::Database;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use qrcode_generator::QrCodeEcc;
@@ -9,8 +10,6 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use db::database::Database;
-use crate::args::Args;
 
 pub fn clean_up_expired_pastes(args: &Args, db: Box<dyn Database>) -> Result<(), AppError> {
     // get current time - this will be needed to check which pastas have expired
@@ -22,7 +21,11 @@ pub fn clean_up_expired_pastes(args: &Args, db: Box<dyn Database>) -> Result<(),
         }
     } as i64;
 
-    let pastas = db.find_all_pastas()?.iter().map(Pasta::from).collect::<Vec<Pasta>>();
+    let pastas = db
+        .find_all_pastas()?
+        .iter()
+        .map(Pasta::from)
+        .collect::<Vec<Pasta>>();
 
     for p in pastas {
         // keep if:

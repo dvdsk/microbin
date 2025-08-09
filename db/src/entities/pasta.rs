@@ -1,7 +1,5 @@
-use rusqlite::{Row};
+use rusqlite::Row;
 use serde::{Deserialize, Serialize};
-use serde_json::{};
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PastaEntity {
@@ -24,7 +22,6 @@ pub struct PastaEntity {
     pub pasta_type: String,
     pub hide_read_count: bool,
 }
-
 
 impl From<&Row<'_>> for PastaEntity {
     fn from(row: &Row<'_>) -> Self {

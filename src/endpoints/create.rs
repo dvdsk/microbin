@@ -83,7 +83,7 @@ pub fn expiration_to_timestamp(expiration: &str, timenow: i64, args: &Args) -> i
 // TODO: form field order might need to be changed. In my testing the attachment
 // data is nestled between password encryption key etc <21-10-24, dvdsk>
 pub async fn create(
-    State(AppState{args, db}): State<AppState>,
+    State(AppState { args, db }): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response<String>, AppError> {
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {

@@ -1,5 +1,5 @@
-use crate::{AppState};
-use crate::args::{Args};
+use crate::AppState;
+use crate::args::Args;
 use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
@@ -23,7 +23,7 @@ struct QRTemplate<'a> {
 }
 
 pub async fn getqr(
-    State(AppState{args, db}): State<AppState>,
+    State(AppState { args, db }): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
     let u64_id = if args.hash_ids {
@@ -42,31 +42,33 @@ pub async fn getqr(
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 ErrorTemplate { args: &args }.render()?,
-            ).into_response());
+            )
+                .into_response());
         }
     }?;
 
-        // generate the QR code as an SVG - if its a file or text pastas, this will point to the /upload endpoint, otherwise to the /url endpoint, essentially directly taking the user to the url stored in the pasta
-        let svg: String = match pasta.pasta_type.as_str() {
-            "url" => misc::string_to_qr_svg(
-                format!("{}/url/{}", &args.public_path_as_str(), &id).as_str(),
-            ),
-            _ => misc::string_to_qr_svg(
-                format!("{}/upload/{}", &args.public_path_as_str(), &id).as_str(),
-            ),
-        };
-
-        let qr_template = QRTemplate {
-            qr: &svg,
-            pasta: &pasta,
-            args: &args,
+    // generate the QR code as an SVG - if its a file or text pastas, this will point to the /upload endpoint, otherwise to the /url endpoint, essentially directly taking the user to the url stored in the pasta
+    let svg: String = match pasta.pasta_type.as_str() {
+        "url" => {
+            misc::string_to_qr_svg(format!("{}/url/{}", &args.public_path_as_str(), &id).as_str())
         }
-        .render()?;
+        _ => misc::string_to_qr_svg(
+            format!("{}/upload/{}", &args.public_path_as_str(), &id).as_str(),
+        ),
+    };
 
-        // serve qr code in template
-        Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
-            .into_response()
-            .map(|_| qr_template).into_response())
+    let qr_template = QRTemplate {
+        qr: &svg,
+        pasta: &pasta,
+        args: &args,
+    }
+    .render()?;
+
+    // serve qr code in template
+    Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]
+        .into_response()
+        .map(|_| qr_template)
+        .into_response())
 }
 
 pub fn qr_router() -> Router<AppState> {

@@ -1,10 +1,10 @@
 use clap::Parser;
+use db::database_args::DatabaseArgs;
 use serde::Serialize;
 use std::convert::Infallible;
 use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
-use db::database_args::DatabaseArgs;
 
 
 #[derive(Parser, Debug, Clone, Serialize)]
@@ -155,23 +155,18 @@ pub struct Args {
     pub max_file_size_unencrypted_mb: usize,
 }
 
-
 impl Into<DatabaseArgs> for Args {
     fn into(self) -> DatabaseArgs {
         if self.json_db {
-            DatabaseArgs::JSONDatabaseProperties(
-                db::database_args::JSONDatabaseProperties {
-                    file_path: self.data_dir.clone(),
-                    file_name: String::from("pasta.json"),
-                },
-            )
+            DatabaseArgs::JSONDatabaseProperties(db::database_args::JSONDatabaseProperties {
+                file_path: self.data_dir.clone(),
+                file_name: String::from("pasta.json"),
+            })
         } else {
-            DatabaseArgs::SqliteProperties(
-                db::database_args::SqliteProperties {
-                    db_path: format!("{}/database.sqlite", self.data_dir),
-                    in_memory: false,
-                },
-            )
+            DatabaseArgs::SqliteProperties(db::database_args::SqliteProperties {
+                db_path: format!("{}/database.sqlite", self.data_dir),
+                in_memory: false,
+            })
         }
     }
 }
@@ -240,7 +235,7 @@ impl Args {
             max_file_size_encrypted_mb: self.max_file_size_encrypted_mb,
             max_file_size_unencrypted_mb: self.max_file_size_unencrypted_mb,
             disable_update_checking: self.disable_update_checking,
-            in_memory_db: self.in_memory_db
+            in_memory_db: self.in_memory_db,
         }
     }
 }

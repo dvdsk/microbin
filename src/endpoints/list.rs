@@ -1,5 +1,5 @@
-use crate::{AppState};
-use crate::args::{Args};
+use crate::AppState;
+use crate::args::Args;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use askama::Template;
@@ -14,8 +14,9 @@ struct ListTemplate<'a> {
     args: &'a Args,
 }
 
-pub async fn list(State(AppState{args, db}): State<AppState>) -> Result<impl IntoResponse,
-    AppError> {
+pub async fn list(
+    State(AppState { args, db }): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
     if args.no_listing {
         return Ok((
             StatusCode::FOUND,
@@ -24,7 +25,11 @@ pub async fn list(State(AppState{args, db}): State<AppState>) -> Result<impl Int
         ));
     }
 
-    let mut pastas = db.find_all_public_pastas()?.iter().map(Pasta::from).collect::<Vec<Pasta>>();
+    let mut pastas = db
+        .find_all_public_pastas()?
+        .iter()
+        .map(Pasta::from)
+        .collect::<Vec<Pasta>>();
     // sort pastas in reverse-chronological order of creation time
     pastas.sort_by(|a, b| b.created.cmp(&a.created));
 

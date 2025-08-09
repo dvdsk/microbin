@@ -15,8 +15,9 @@ use crate::endpoints::remove::remove_router;
 use crate::endpoints::static_resources;
 use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
+use crate::util::auth::auth_validator;
 use crate::util::telemetry::start_telemetry_thread;
-use axum::extract::DefaultBodyLimit;
+use ::db::database::{Database, get_database};
 use axum::{Router, middleware};
 use chrono::Local;
 use clap::Parser;
@@ -25,8 +26,6 @@ use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use tower_http::normalize_path::NormalizePathLayer;
-use ::db::database::{get_database, Database};
-use crate::util::auth::auth_validator;
 
 pub mod args;
 mod error_handling;
@@ -82,8 +81,6 @@ async fn main() -> std::io::Result<()> {
             )
         })
         .init();
-
-
 
     match fs::create_dir_all(format!("{}/public", args.data_dir)) {
         Ok(dir) => dir,

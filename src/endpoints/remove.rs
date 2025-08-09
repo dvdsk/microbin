@@ -53,7 +53,8 @@ pub async fn remove(
                 ),
             )],
             "".to_string(),
-        ).into_response());
+        )
+            .into_response());
     }
 
     // remove the file itself
@@ -90,7 +91,8 @@ pub async fn remove(
             format!("{}/list", args.public_path_as_str()),
         )],
         "".to_string(),
-    ).into_response())
+    )
+        .into_response())
 }
 
 pub async fn post_remove(
@@ -110,7 +112,8 @@ pub async fn post_remove(
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
             ErrorTemplate { args: &args }.render()?,
-        ).into_response());
+        )
+            .into_response());
     }
 
     let password_unwrapped = password?;
@@ -167,7 +170,8 @@ pub async fn post_remove(
                         format!("{}/list", args.public_path_as_str()),
                     )],
                     "".to_string(),
-                ).into_response();
+                )
+                    .into_response();
                 return Ok(res);
             } else {
                 let res = (
@@ -181,7 +185,8 @@ pub async fn post_remove(
                         ),
                     )],
                     "".to_string(),
-                ).into_response();
+                )
+                    .into_response();
                 return Ok(res);
             }
         } else {
@@ -196,7 +201,8 @@ pub async fn post_remove(
                     ),
                 )],
                 "".to_string(),
-            ).into_response();
+            )
+                .into_response();
             return Ok(res);
         }
     }
@@ -212,7 +218,8 @@ pub async fn post_remove(
             ),
         )],
         "".to_string(),
-    ).into_response();
+    )
+        .into_response();
     Ok(res)
 }
 

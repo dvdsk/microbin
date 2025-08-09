@@ -256,56 +256,55 @@ pub async fn getrawpasta(
             ));
         }
     }?;
-        if pasta.encrypt_server {
-            return Ok((
-                StatusCode::FOUND,
-                [(
-                    header::LOCATION,
-                    format!(
-                        "{}/auth_raw/{}",
-                        args.public_path_as_str(),
-                        pasta.id_as_animals(&args.hash_ids)
-                    ),
-                )],
-                "".to_string(),
-            ));
-        }
-
-        // increment read count
-        pasta.read_count += 1;
-
-        // save the updated read count
-        db.update_pasta(&id, pasta.clone().into())?;
-
-        // get current unix time in seconds
-        let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(n) => n.as_secs(),
-            Err(_) => {
-                log::error!("SystemTime before UNIX EPOCH!");
-                0
-            }
-        } as i64;
-
-        // update last read time
-        pasta.last_read = timenow;
-
-        // send raw content of pasta
-        let selected_pasta = pasta.content.to_owned();
-
-        let response = (
-            StatusCode::OK,
+    if pasta.encrypt_server {
+        return Ok((
+            StatusCode::FOUND,
             [(
-                header::CONTENT_TYPE,
-                "text/plain;  \
-        charset=utf-8"
-                    .to_string(),
+                header::LOCATION,
+                format!(
+                    "{}/auth_raw/{}",
+                    args.public_path_as_str(),
+                    pasta.id_as_animals(&args.hash_ids)
+                ),
             )],
-            selected_pasta,
-        );
+            "".to_string(),
+        ));
+    }
 
-        Ok(response)
+    // increment read count
+    pasta.read_count += 1;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+
+    // get current unix time in seconds
+    let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => {
+            log::error!("SystemTime before UNIX EPOCH!");
+            0
+        }
+    } as i64;
+
+    // update last read time
+    pasta.last_read = timenow;
+
+    // send raw content of pasta
+    let selected_pasta = pasta.content.to_owned();
+
+    let response = (
+        StatusCode::OK,
+        [(
+            header::CONTENT_TYPE,
+            "text/plain;  \
+        charset=utf-8"
+                .to_string(),
+        )],
+        selected_pasta,
+    );
+
+    Ok(response)
 }
-
 
 pub async fn postrawpasta(
     State(AppState { args, db }): State<AppState>,
@@ -334,23 +333,51 @@ pub async fn postrawpasta(
         }
     }?;
 
-        if pasta.encrypt_server && password == *"" {
-            let mut headers = HeaderMap::new();
-            headers.insert(
-                "Location",
+    if pasta.encrypt_server && password == *"" {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Location",
+            format!(
+                "{}/auth/{}",
+                args.public_path_as_str(),
+                pasta.id_as_animals(&args.hash_ids)
+            )
+            .parse()?,
+        );
+        return Ok((
+            StatusCode::FOUND,
+            [(
+                header::LOCATION,
                 format!(
                     "{}/auth/{}",
                     args.public_path_as_str(),
                     pasta.id_as_animals(&args.hash_ids)
-                )
-                .parse()?,
-            );
+                ),
+            )],
+            "".to_string(),
+        ));
+    }
+
+    // increment read count
+    pasta.read_count += 1;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+
+    let original_content = pasta.content.to_owned();
+
+    // decrypt content temporarily
+    if password != *"" {
+        let res = decrypt(&original_content, &password);
+        if let Ok(rs) = res {
+            pasta.content.replace_range(.., rs.as_str());
+        } else {
             return Ok((
                 StatusCode::FOUND,
                 [(
                     header::LOCATION,
                     format!(
-                        "{}/auth/{}",
+                        "{}/auth/{}/incorrect",
                         args.public_path_as_str(),
                         pasta.id_as_animals(&args.hash_ids)
                     ),
@@ -358,65 +385,37 @@ pub async fn postrawpasta(
                 "".to_string(),
             ));
         }
+    }
 
-        // increment read count
-        pasta.read_count += 1;
-
-        // save the updated read count
-        db.update_pasta(&id, pasta.clone().into())?;
-
-        let original_content = pasta.content.to_owned();
-
-        // decrypt content temporarily
-        if password != *"" {
-            let res = decrypt(&original_content, &password);
-            if let Ok(rs) = res {
-                pasta.content.replace_range(.., rs.as_str());
-            } else {
-                return Ok((
-                    StatusCode::FOUND,
-                    [(
-                        header::LOCATION,
-                        format!(
-                            "{}/auth/{}/incorrect",
-                            args.public_path_as_str(),
-                            pasta.id_as_animals(&args.hash_ids)
-                        ),
-                    )],
-                    "".to_string(),
-                ));
-            }
+    // get current unix time in seconds
+    let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => {
+            log::error!("SystemTime before UNIX EPOCH!");
+            0
         }
+    } as i64;
 
-        // get current unix time in seconds
-        let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(n) => n.as_secs(),
-            Err(_) => {
-                log::error!("SystemTime before UNIX EPOCH!");
-                0
-            }
-        } as i64;
+    // update last read time
+    pasta.last_read = timenow;
 
-        // update last read time
-        pasta.last_read = timenow;
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
 
-        // save the updated read count
-        db.update_pasta(&id, pasta.clone().into())?;
+    // send raw content of pasta
 
-        // send raw content of pasta
+    let mut headers = HeaderMap::new();
+    headers.insert("content-type", "text/html; charset=utf-8".parse()?);
+    let response = (
+        StatusCode::NOT_FOUND,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
+        pasta.content.to_owned(),
+    );
 
-        let mut headers = HeaderMap::new();
-        headers.insert("content-type", "text/html; charset=utf-8".parse()?);
-        let response = (
-            StatusCode::NOT_FOUND,
-            [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            pasta.content.to_owned(),
-        );
-
-        if pasta.content != original_content {
-            pasta.content = original_content;
-        }
-        Ok(response)
+    if pasta.content != original_content {
+        pasta.content = original_content;
+    }
+    Ok(response)
 }
 
 fn decrypt(text_str: &str, key_str: &str) -> Result<String, magic_crypt::MagicCryptError> {

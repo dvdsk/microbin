@@ -70,8 +70,8 @@ pub async fn get_edit(
                     path: &String::from("edit"),
                     status: &String::from(""),
                 }
-                    .render()
-                    .map_err(AppError::from)?,
+                .render()
+                .map_err(AppError::from)?,
             )
                 .into_response())
         }
@@ -141,7 +141,7 @@ pub async fn get_edit_with_status(
             status: &status,
             path: &String::from("edit"),
         }
-            .render()?,
+        .render()?,
     )
         .into_response())
 }
@@ -167,7 +167,7 @@ pub async fn post_edit_private(
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 ErrorTemplate { args: &args }.render()?,
             )
-                .into_response())
+                .into_response());
         }
     }?;
 
@@ -218,7 +218,7 @@ pub async fn post_edit_private(
                 path: &String::from("submit_edit_private"),
                 status: &String::from(""),
             }
-                .render()?,
+            .render()?,
         );
 
         if pasta.content != original_content {
@@ -233,7 +233,6 @@ pub async fn post_edit_private(
         ErrorTemplate { args: &args }.render()?,
     )
         .into_response())
-
 }
 
 pub async fn post_submit_edit_private(

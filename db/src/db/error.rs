@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use rusqlite::Error;
+use std::fmt::Debug;
 
 pub struct DBError {
     pub message: String,
@@ -33,7 +33,6 @@ impl std::fmt::Display for DBError {
     }
 }
 
-
 impl From<serde_json::Error> for DBError {
     fn from(value: serde_json::Error) -> Self {
         DBError {
@@ -41,7 +40,6 @@ impl From<serde_json::Error> for DBError {
         }
     }
 }
-
 
 impl Debug for DBError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
