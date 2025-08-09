@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::pasta::Pasta;
 use axum::extract::multipart::MultipartError;
 use axum::http;
@@ -13,6 +14,13 @@ pub struct AppError {
     pub message: String,
     pub code: StatusCode,
 }
+
+impl Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AppError: {} (code: {})", self.message, self.code)
+    }
+}
+
 
 impl AppError {
     pub fn bad_request(message: impl Into<String>) -> AppError {

@@ -50,8 +50,8 @@ pub async fn post_secure_file(
 
     {
         let pastas = pastas.lock().expect("no microbin thread should panic");
-        if found {
-            if let Some(ref pasta_file) = pastas[index].file {
+        if found
+            && let Some(ref pasta_file) = pastas[index].file {
                 let file = File::open(format!(
                     "{}/attachments/{}/enc",
                     &args.data_dir,
@@ -78,7 +78,6 @@ pub async fn post_secure_file(
                     .body(decrypted_data.into())?;
                 return Ok(response);
             }
-        }
     }
     Ok((StatusCode::NOT_FOUND).into_response())
 }
@@ -115,8 +114,8 @@ pub async fn get_file(
     }
 
     let pastas = { pastas.lock().expect("no microbin thread should panic").clone() };
-    if found {
-        if let Some(ref pasta_file) = pastas[index].file {
+    if found
+        && let Some(ref pasta_file) = pastas[index].file {
             if pastas[index].encrypt_server {
                 return Ok((
                     StatusCode::FOUND,
@@ -157,7 +156,6 @@ pub async fn get_file(
             // header in the request.
             return Ok(response.into_response());
         }
-    }
 
     Ok((StatusCode::NOT_FOUND).into_response())
 }
