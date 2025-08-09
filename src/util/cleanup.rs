@@ -1,27 +1,33 @@
-use std::{fs, sync::{Arc, Mutex}, thread, time::Duration};
+use std::{
+    fs,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-use crate::{pasta::Pasta, util::misc::{remove_expired}, args::Args};
 use crate::error_handling::AppError;
+use crate::{args::Args, pasta::Pasta, util::misc::clean_up_expired_pastes};
 
 pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>, args: Args) {
     thread::spawn(move || {
         log::info!("Started background cleanup thread - running immediately and then every hour");
-        
+
         loop {
             match app_state.lock() {
                 Ok(mut pastas) => {
-                    // Clean up expired pastes
                     let count_before = pastas.len();
-                    remove_expired(&mut pastas, &args);
+                    clean_up_expired_pastes(&mut pastas, &args);
                     let count_after = pastas.len();
                     let removed_count = count_before - count_after;
-                    
+
                     if removed_count > 0 {
-                        log::info!("Background cleanup: removed {} expired paste(s)", removed_count);
+                        log::info!(
+                            "Background cleanup: removed {} expired paste(s)",
+                            removed_count
+                        );
                     } else {
                         log::debug!("Background cleanup: no expired pastes found");
                     }
-                    
 
                     if let Err(e) = cleanup_orphaned_files(&pastas, &args) {
                         log::error!("Failed to cleanup paste: {}", e);
@@ -31,12 +37,11 @@ pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>, args: Args) {
                     log::error!("Background cleanup failed to acquire pasta lock: {}", e);
                 }
             }
-            
+
             thread::sleep(Duration::from_secs(60 * 60)); // 1 hour
         }
     });
 }
-
 
 // Clean up orphaned files (files without pasta references)
 pub fn cleanup_orphaned_files(pastas: &[Pasta], args: &Args) -> Result<(), AppError> {
@@ -57,16 +62,20 @@ pub fn cleanup_orphaned_files(pastas: &[Pasta], args: &Args) -> Result<(), AppEr
 
     let mut orphaned_count = 0;
     for dir_entry in dirs.flatten() {
-        if !dir_entry.file_type().map(|ft| ft.is_dir()).map_err(AppError::from)? {
+        if !dir_entry
+            .file_type()
+            .map(|ft| ft.is_dir())
+            .map_err(AppError::from)?
+        {
             continue;
         }
 
         let dir_name = dir_entry.file_name().to_string_lossy().to_string();
 
         // Check if any pasta references this directory
-        let is_referenced = pastas.iter().any(|pasta| {
-            pasta.file.is_some() && pasta.id_as_animals(&args.hash_ids) == dir_name
-        });
+        let is_referenced = pastas
+            .iter()
+            .any(|pasta| pasta.file.is_some() && pasta.id_as_animals(&args.hash_ids) == dir_name);
 
         if !is_referenced {
             log::debug!("Found orphaned directory: {}", dir_name);
@@ -83,7 +92,10 @@ pub fn cleanup_orphaned_files(pastas: &[Pasta], args: &Args) -> Result<(), AppEr
     }
 
     if orphaned_count > 0 {
-        log::info!("Orphaned files cleanup: removed {} orphaned directories", orphaned_count);
+        log::info!(
+            "Orphaned files cleanup: removed {} orphaned directories",
+            orphaned_count
+        );
     } else {
         log::debug!("Orphaned files cleanup: no orphaned files found");
     }

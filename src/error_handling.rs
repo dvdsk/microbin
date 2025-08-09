@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use crate::pasta::Pasta;
 use axum::extract::multipart::MultipartError;
 use axum::http;
@@ -6,6 +5,7 @@ use axum::response::{IntoResponse, Response};
 use magic_crypt::MagicCryptError;
 use reqwest::StatusCode;
 use reqwest::header::InvalidHeaderValue;
+use std::fmt::Display;
 use std::str::Utf8Error;
 use std::sync::{MutexGuard, PoisonError};
 
@@ -20,7 +20,6 @@ impl Display for AppError {
         write!(f, "AppError: {} (code: {})", self.message, self.code)
     }
 }
-
 
 impl AppError {
     pub fn bad_request(message: impl Into<String>) -> AppError {

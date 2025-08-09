@@ -4,7 +4,7 @@ use crate::error_handling::AppError;
 use crate::util::animalnumbers::to_u64;
 use crate::util::db::update;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{decrypt, encrypt, remove_expired};
+use crate::util::misc::{clean_up_expired_pastes, decrypt, encrypt};
 use crate::{AppState, Pasta};
 use askama::Template;
 use axum::Router;
@@ -24,7 +24,7 @@ struct EditTemplate<'a> {
 }
 
 pub async fn get_edit(
-    State(AppState{args,pastas}): State<AppState>,
+    State(AppState { args, pastas }): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
     let mut pastas = pastas.lock().expect("no microbin thread should panic");
@@ -35,7 +35,7 @@ pub async fn get_edit(
         to_u64(&id).unwrap_or(0)
     };
 
-    remove_expired(&mut pastas, &args);
+    clean_up_expired_pastes(&mut pastas, &args);
 
     for pasta in pastas.iter() {
         if pasta.id == id {
@@ -88,7 +88,7 @@ pub async fn get_edit(
 }
 
 pub async fn get_edit_with_status(
-    State(AppState{args,pastas}): State<AppState>,
+    State(AppState { args, pastas }): State<AppState>,
     Path((id, status)): Path<(String, String)>,
 ) -> Result<axum::response::Response, AppError> {
     let mut pastas = pastas.lock().expect("no microbin thread should panic");
@@ -99,7 +99,7 @@ pub async fn get_edit_with_status(
         to_u64(&id).unwrap_or(0)
     };
 
-    remove_expired(&mut pastas, &args);
+    clean_up_expired_pastes(&mut pastas, &args);
 
     for pasta in pastas.iter() {
         if pasta.id == intern_id {
@@ -150,7 +150,7 @@ pub async fn get_edit_with_status(
 }
 
 pub async fn post_edit_private(
-    State(AppState{args,pastas}): State<AppState>,
+    State(AppState { args, pastas }): State<AppState>,
     Path(id): Path<String>,
     mut payload: Multipart,
 ) -> Result<axum::response::Response, AppError> {
@@ -175,7 +175,7 @@ pub async fn post_edit_private(
     {
         let mut pastas = pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas, &args);
+        clean_up_expired_pastes(&mut pastas, &args);
     }
 
     // find the index of the pasta in the collection based on u64 id
@@ -250,9 +250,7 @@ pub async fn post_edit_private(
 }
 
 pub async fn post_submit_edit_private(
-    State(AppState{args,pastas
-        
-          }): State<AppState>,
+    State(AppState { args, pastas }): State<AppState>,
     Path(id): Path<String>,
     mut payload: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
@@ -282,7 +280,7 @@ pub async fn post_submit_edit_private(
         // get access to the pasta collection
         let mut pastas = pastas.lock().expect("no microbin thread should panic");
         // remove expired pastas (including this one if needed)
-        remove_expired(&mut pastas, &args);
+        clean_up_expired_pastes(&mut pastas, &args);
     }
 
     // find the index of the pasta in the collection based on u64 id
@@ -373,7 +371,7 @@ pub async fn post_submit_edit_private(
 }
 
 pub async fn post_edit(
-    State(AppState{args,pastas}): State<AppState>,
+    State(AppState { args, pastas }): State<AppState>,
     Path(id): Path<String>,
     mut payload: Multipart,
 ) -> Result<axum::response::Response, AppError> {
@@ -385,7 +383,7 @@ pub async fn post_edit(
 
     {
         let mut pastas = pastas.lock().expect("no microbin thread should panic");
-        remove_expired(&mut pastas, &args);
+        clean_up_expired_pastes(&mut pastas, &args);
     }
 
     let mut new_content = String::from("");

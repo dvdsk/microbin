@@ -5,7 +5,6 @@ use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
 
-
 #[derive(Parser, Debug, Clone, Serialize)]
 #[clap(author, version, about, long_about = None)]
 pub struct Args {
@@ -120,7 +119,11 @@ pub struct Args {
     #[clap(long, env = "MICROBIN_ENABLE_TELEMETRY")]
     pub enable_telemetry: bool,
 
-    #[clap(long, env = "MICROBIN_TELEMETRY_URL", default_value = "https://api.microbin.eu/telemetry/")]
+    #[clap(
+        long,
+        env = "MICROBIN_TELEMETRY_URL",
+        default_value = "https://api.microbin.eu/telemetry/"
+    )]
     pub telemetry_url: String,
 
     #[clap(long, env = "MICROBIN_DISABLE_UPDATE_CHECKING")]

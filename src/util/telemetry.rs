@@ -3,8 +3,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde_json::json;
 use crate::args::Args;
+use serde_json::json;
 
 pub fn start_telemetry_thread(args: &Args) {
     // Start a new thread that calls the send_telemetry function every 24 hours

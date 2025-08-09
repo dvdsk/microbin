@@ -6,7 +6,7 @@ use crate::util::animalnumbers::to_u64;
 use crate::util::auth;
 use crate::util::db::delete;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{decrypt, remove_expired};
+use crate::util::misc::{clean_up_expired_pastes, decrypt};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -17,10 +17,10 @@ use reqwest::header;
 use std::fs;
 
 pub async fn remove(
-    State(AppState {pastas,args}): State<AppState>,
+    State(AppState { pastas, args }): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut pastas =  pastas.lock().expect("no microbin thread should panic");
+    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -87,7 +87,7 @@ pub async fn remove(
         }
     }
 
-    remove_expired(&mut pastas, &args);
+    clean_up_expired_pastes(&mut pastas, &args);
 
     Ok((
         StatusCode::OK,
@@ -97,7 +97,7 @@ pub async fn remove(
 }
 
 pub async fn post_remove(
-    State(AppState{pastas,args}): State<AppState>,
+    State(AppState { pastas, args }): State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
@@ -109,7 +109,7 @@ pub async fn post_remove(
 
     {
         let mut pastas = pastas.lock().expect("no microbin thread should panic");
-        remove_expired(&mut pastas, &args);
+        clean_up_expired_pastes(&mut pastas, &args);
     }
 
     let password = auth::password_from_multipart(payload).await;

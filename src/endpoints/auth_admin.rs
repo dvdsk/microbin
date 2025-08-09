@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::args::{Args};
+use crate::args::Args;
 use crate::error_handling::AppError;
 use askama::Template;
 use axum::extract::{Path, State};
@@ -13,8 +13,9 @@ struct AuthAdmin<'a> {
     status: String,
 }
 
-async fn auth_admin(State(AppState{args,..}): State<AppState>,) -> Result<impl IntoResponse, 
-    AppError> {
+async fn auth_admin(
+    State(AppState { args, .. }): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
         .body(
@@ -26,9 +27,10 @@ async fn auth_admin(State(AppState{args,..}): State<AppState>,) -> Result<impl I
         )?)
 }
 
-async fn auth_admin_with_status(Path(status): Path<String>,      State(AppState{args,..}): 
-State<AppState>) -> Result<impl IntoResponse,
-    AppError> {
+async fn auth_admin_with_status(
+    Path(status): Path<String>,
+    State(AppState { args, .. }): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
         .body(

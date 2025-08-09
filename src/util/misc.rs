@@ -1,4 +1,6 @@
+use super::db::delete;
 use crate::Pasta;
+use crate::args::Args;
 use crate::error_handling::AppError;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
@@ -7,11 +9,8 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::args::Args;
-use super::db::delete;
 
-
-pub fn remove_expired(pastas: &mut Vec<Pasta>, args: &Args) {
+pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -35,17 +34,33 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>, args: &Args) {
             // keep
             true
         } else {
-            log::debug!("Removing expired pasta ID: {} ({})", p.id, p.id_as_animals(&args.hash_ids));
+            log::debug!(
+                "Removing expired pasta ID: {} ({})",
+                p.id,
+                p.id_as_animals(&args.hash_ids)
+            );
             if p.expiration > 0 && p.expiration <= timenow {
-                log::debug!("  Reason: Expired (expiration: {}, now: {})", p.expiration, timenow);
+                log::debug!(
+                    "  Reason: Expired (expiration: {}, now: {})",
+                    p.expiration,
+                    timenow
+                );
             }
             if p.burn_after_reads > 0 && p.read_count >= p.burn_after_reads {
-                log::debug!("  Reason: Burn after reads limit reached ({}/{})", p.read_count, p.burn_after_reads);
+                log::debug!(
+                    "  Reason: Burn after reads limit reached ({}/{})",
+                    p.read_count,
+                    p.burn_after_reads
+                );
             }
             if args.gc_days > 0 && p.last_read_days_ago() >= args.gc_days {
-                log::debug!("  Reason: GC limit reached (last read {} days ago, limit: {})", p.last_read_days_ago(), args.gc_days);
+                log::debug!(
+                    "  Reason: GC limit reached (last read {} days ago, limit: {})",
+                    p.last_read_days_ago(),
+                    args.gc_days
+                );
             }
-            
+
             delete(None, Some(p.id), args);
 
             // remove the file itself
@@ -80,9 +95,8 @@ pub fn remove_expired(pastas: &mut Vec<Pasta>, args: &Args) {
 }
 
 pub fn string_to_qr_svg(str: &str) -> String {
-    qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>).expect(
-        "should be able to generate QR code SVG if the string is not empty",
-    )
+    qrcode_generator::to_svg_to_string(str, QrCodeEcc::Low, 256, None::<&str>)
+        .expect("should be able to generate QR code SVG if the string is not empty")
 }
 
 pub fn is_valid_url(url: &str) -> bool {
