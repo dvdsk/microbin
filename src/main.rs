@@ -16,8 +16,10 @@ use crate::endpoints::static_resources;
 use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
 use crate::util::auth::auth_validator;
+use crate::util::cleanup::start_cleanup_thread;
 use crate::util::telemetry::start_telemetry_thread;
 use ::db::database::{Database, get_database};
+use axum::extract::DefaultBodyLimit;
 use axum::{Router, middleware};
 use chrono::Local;
 use clap::Parser;
@@ -69,7 +71,6 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-
     Builder::from_env("MICROBIN_LOG")
         .format(|buf, record| {
             writeln!(
@@ -104,7 +105,7 @@ async fn main() -> std::io::Result<()> {
         args: args.clone(),
     };
 
-    start_cleanup_thread(Arc::clone(&app_state.pastas), args.clone());
+    start_cleanup_thread(&app_state.db, args.clone());
 
     let mut router = Router::new()
         .merge(create_routes())

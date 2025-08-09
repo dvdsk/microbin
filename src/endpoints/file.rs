@@ -108,34 +108,34 @@ pub async fn get_file(
             .into_response());
     }
 
-        // Construct the path to the file
-        let file_path = format!(
-            "{}/attachments/{}/{}",
-            &args.data_dir,
-            pasta.id_as_animals(&args.hash_ids),
-            pasta_file.name()
-        );
-        let file_path = PathBuf::from(file_path);
+    // Construct the path to the file
+    let file_path = format!(
+        "{}/attachments/{}/{}",
+        &args.data_dir,
+        pasta.id_as_animals(&args.hash_ids),
+        pasta_file.name()
+    );
+    let file_path = PathBuf::from(file_path);
 
-        // This will stream the file and set the content type based on the
-        // file path
-        let file = tokio::fs::File::open(&file_path).await?;
-        let stream = ReaderStream::new(file);
-        let body = axum::body::Body::from_stream(stream);
-        let content_disposition = format!("attachment; filename=\"{}\"", pasta_file.name());
-        let response = Response::builder()
-            .status(StatusCode::OK)
-            .header(
-                header::CONTENT_TYPE,
-                mime_guess::from_path(&file_path)
-                    .first_or_octet_stream()
-                    .as_ref(),
-            )
-            .header(header::CONTENT_DISPOSITION, &content_disposition)
-            .body(body)?;
-        // This takes care of streaming/seeking using the Range
-        // header in the request.
-        return Ok(response.into_response());
+    // This will stream the file and set the content type based on the
+    // file path
+    let file = tokio::fs::File::open(&file_path).await?;
+    let stream = ReaderStream::new(file);
+    let body = axum::body::Body::from_stream(stream);
+    let content_disposition = format!("attachment; filename=\"{}\"", pasta_file.name());
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            header::CONTENT_TYPE,
+            mime_guess::from_path(&file_path)
+                .first_or_octet_stream()
+                .as_ref(),
+        )
+        .header(header::CONTENT_DISPOSITION, &content_disposition)
+        .body(body)?;
+    // This takes care of streaming/seeking using the Range
+    // header in the request.
+    Ok(response.into_response())
 }
 
 pub fn files_router() -> axum::Router<AppState> {

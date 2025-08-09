@@ -13,7 +13,9 @@ pub trait Database {
     fn delete_pasta(&self, id: &u64) -> Result<(), DBError>;
 }
 
-pub fn get_database(args: DatabaseArgs) -> Box<dyn Database + Send + Sync> {
+pub type DatabaseType = Box<dyn Database + Send + Sync>;
+
+pub fn get_database(args: DatabaseArgs) -> DatabaseType {
     match args {
         DatabaseArgs::SqliteProperties(sqlite_props) => {
             let db = SqLite::new(sqlite_props).expect("Error initializing SQLite database");

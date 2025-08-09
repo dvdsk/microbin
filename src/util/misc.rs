@@ -1,8 +1,7 @@
-use super::db::delete;
 use crate::Pasta;
 use crate::args::Args;
 use crate::error_handling::AppError;
-use db::database::Database;
+use db::database::DatabaseType;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use qrcode_generator::QrCodeEcc;
@@ -11,7 +10,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn clean_up_expired_pastes(args: &Args, db: Box<dyn Database>) -> Result<(), AppError> {
+pub fn clean_up_expired_pastes(args: &Args, db: &DatabaseType) -> Result<(), AppError> {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -70,7 +69,7 @@ pub fn clean_up_expired_pastes(args: &Args, db: Box<dyn Database>) -> Result<(),
                 );
             }
 
-            delete(None, Some(p.id), args);
+            db.delete_pasta(&p.id)?;
 
             // remove the file itself
             if let Some(file) = &p.file {
