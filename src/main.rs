@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::args::{Args};
+use crate::args::Args;
 use crate::endpoints::admin::admin_router;
 use crate::endpoints::auth_admin::auth_admin_router;
 use crate::endpoints::create::create_routes;
@@ -15,18 +15,19 @@ use crate::endpoints::remove::remove_router;
 use crate::endpoints::static_resources;
 use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
+use crate::util::auth::auth_validator;
+use crate::util::cleanup::start_cleanup_thread;
 use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
+use axum::extract::DefaultBodyLimit;
 use axum::{Router, middleware};
 use chrono::Local;
+use clap::Parser;
 use env_logger::Builder;
-use log::LevelFilter;
 use std::fs;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use clap::Parser;
 use tower_http::normalize_path::NormalizePathLayer;
-use crate::util::auth::auth_validator;
 
 pub mod args;
 mod error_handling;
@@ -35,6 +36,7 @@ pub mod pasta;
 pub mod util {
     pub mod animalnumbers;
     pub mod auth;
+    pub mod cleanup;
     pub mod db;
     pub mod db_json;
     #[cfg(feature = "default")]
@@ -73,8 +75,7 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-
-    Builder::new()
+    Builder::from_env("MICROBIN_LOG")
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -84,7 +85,6 @@ async fn main() -> std::io::Result<()> {
                 record.args()
             )
         })
-        .filter(None, LevelFilter::Info)
         .init();
 
     log::info!(
@@ -113,6 +113,8 @@ async fn main() -> std::io::Result<()> {
         args: args.clone(),
     };
 
+    start_cleanup_thread(Arc::clone(&app_state.pastas), args.clone());
+
     let mut router = Router::new()
         .merge(create_routes())
         .merge(admin_router())
@@ -128,7 +130,7 @@ async fn main() -> std::io::Result<()> {
         .fallback(not_found)
         .with_state(app_state.clone());
 
-    if !args.disable_telemetry {
+    if args.enable_telemetry {
         start_telemetry_thread(&args);
     }
 
@@ -139,7 +141,26 @@ async fn main() -> std::io::Result<()> {
         router = router.layer(middleware::from_fn_with_state(app_state, auth_validator));
     }
 
-    let app = router.layer(NormalizePathLayer::trim_trailing_slash());
+    let max_size = std::cmp::max(
+        args.max_file_size_encrypted_mb,
+        args.max_file_size_unencrypted_mb,
+    );
+    let body_limit = (max_size + 10) * 1024 * 1024; // Add 10MB overhead for multipart encoding
+
+    log::info!(
+        "Configured file size limits - encrypted: {}MB, unencrypted: {}MB",
+        args.max_file_size_encrypted_mb,
+        args.max_file_size_unencrypted_mb
+    );
+    log::info!(
+        "Setting HTTP body limit to: {}MB ({} bytes)",
+        (max_size + 10),
+        body_limit
+    );
+
+    let app = router
+        .layer(DefaultBodyLimit::max(body_limit))
+        .layer(NormalizePathLayer::trim_trailing_slash());
 
     let tcp = tokio::net::TcpListener::bind((args.bind, args.port)).await?;
 

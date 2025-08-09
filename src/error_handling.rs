@@ -5,6 +5,7 @@ use axum::response::{IntoResponse, Response};
 use magic_crypt::MagicCryptError;
 use reqwest::StatusCode;
 use reqwest::header::InvalidHeaderValue;
+use std::fmt::Display;
 use std::str::Utf8Error;
 use std::sync::{MutexGuard, PoisonError};
 
@@ -12,6 +13,12 @@ use std::sync::{MutexGuard, PoisonError};
 pub struct AppError {
     pub message: String,
     pub code: StatusCode,
+}
+
+impl Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AppError: {} (code: {})", self.message, self.code)
+    }
 }
 
 impl AppError {

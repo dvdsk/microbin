@@ -97,6 +97,49 @@ You can use MicroBin:
 
 ...and many other things, why not get creative?
 
+## Logging and Debugging
+
+MicroBin supports configurable logging levels for debugging and troubleshooting using the `MICROBIN_LOG` environment variable.
+
+### Available Log Levels
+
+- `error` - Only error messages  
+- `warn` - Warnings and errors
+- `info` - General information (default)
+- `debug` - Detailed debugging information
+- `trace` - Very verbose tracing (includes file upload progress)
+
+### Examples
+
+```bash
+# Show debug level logs
+export MICROBIN_LOG=debug
+
+# Show trace level logs (most verbose)  
+export MICROBIN_LOG=trace
+
+# Show only info level logs from microbin modules
+export MICROBIN_LOG=microbin=info
+
+# Multiple modules with different levels
+export MICROBIN_LOG=microbin=debug,tower_http=info
+```
+
+### Docker Usage
+
+Set the `MICROBIN_LOG` environment variable in your `compose.yaml` or docker run command:
+
+```yaml
+environment:
+  MICROBIN_LOG: debug
+```
+
+This is particularly useful for:
+- Troubleshooting file upload issues
+- Monitoring request handling
+- Debugging authentication problems
+- Analyzing performance issues
+
 MicroBin and MicroBin.eu are available under the [BSD 3-Clause License](LICENSE).
 
 © Dániel Szabó 2022-2023

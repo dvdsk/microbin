@@ -1,8 +1,8 @@
 use crate::AppState;
-use crate::args::{Args};
+use crate::args::Args;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
-use crate::util::misc::remove_expired;
+use crate::util::misc::clean_up_expired_pastes;
 use crate::util::version::{CURRENT_VERSION, Version, fetch_latest_version};
 use askama::Template;
 use axum::Router;
@@ -23,7 +23,9 @@ struct AdminTemplate<'a> {
     update: &'a Option<Version>,
 }
 
-pub async fn get_admin(State(AppState{args,..}): State<AppState>,) -> Result<impl IntoResponse, AppError> {
+pub async fn get_admin(
+    State(AppState { args, .. }): State<AppState>,
+) -> Result<impl IntoResponse, AppError> {
     Ok((
         StatusCode::FOUND,
         [(
@@ -35,7 +37,7 @@ pub async fn get_admin(State(AppState{args,..}): State<AppState>,) -> Result<imp
 }
 
 pub async fn post_admin(
-    State(AppState{pastas,args}): State<AppState>,
+    State(AppState { pastas, args }): State<AppState>,
     mut payload: Multipart,
 ) -> Result<Response, AppError> {
     let mut username = String::from("");
@@ -78,7 +80,7 @@ pub async fn post_admin(
     let pastas = {
         let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
-        remove_expired(&mut pastas, &args);
+        clean_up_expired_pastes(&mut pastas, &args);
 
         // sort pastas in reverse-chronological order of creation time
         pastas.sort_by(|a, b| b.created.cmp(&a.created));

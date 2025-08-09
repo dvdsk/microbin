@@ -3,8 +3,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use serde_json::json;
 use crate::args::Args;
+use serde_json::json;
 
 pub fn start_telemetry_thread(args: &Args) {
     // Start a new thread that calls the send_telemetry function every 24 hours
@@ -29,9 +29,9 @@ fn send_telemetry(args: &Args) -> Result<(), reqwest::Error> {
     // Convert the telemetry object to JSON
     let json_body = json!(args.to_owned().without_secrets().to_owned()).to_string();
 
-    // Send the telemetry data to the API
+    // Send the telemetry data to the configured API endpoint
     crate::util::http_client::new()
-        .post("https://api.microbin.eu/telemetry/")
+        .post(&args.telemetry_url)
         .header("Content-Type", "application/json")
         .body(json_body)
         .send()?;

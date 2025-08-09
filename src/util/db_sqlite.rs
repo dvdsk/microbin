@@ -3,8 +3,8 @@ use std::sync::Once;
 use bytesize::ByteSize;
 use rusqlite::{Connection, params};
 
-use crate::{Pasta, pasta::PastaFile};
 use crate::args::Args;
+use crate::{Pasta, pasta::PastaFile};
 
 pub fn read_all(args: &Args) -> Vec<Pasta> {
     static INIT_SQLITE: Once = Once::new();
