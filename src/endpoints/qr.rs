@@ -34,7 +34,7 @@ pub async fn getqr(
 
     let opt_pasta = db.get_pasta(&u64_id)?;
 
-    let mut pasta: Pasta = match opt_pasta {
+    let pasta: Pasta = match opt_pasta {
         Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
         None => {
             // otherwise, send pasta not found error

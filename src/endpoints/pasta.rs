@@ -6,14 +6,12 @@ use crate::pasta::Pasta;
 use crate::util::animalnumbers::to_u64;
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::clean_up_expired_pastes;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use db::entities::pasta::PastaEntity;
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use std::time::{SystemTime, UNIX_EPOCH};
 

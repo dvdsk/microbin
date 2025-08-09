@@ -3,7 +3,7 @@ use crate::endpoints::errors::ErrorTemplate;
 use crate::error_handling::AppError;
 use crate::util::animalnumbers::to_u64;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{decrypt, encrypt, remove_expired};
+use crate::util::misc::{decrypt, encrypt};
 use crate::{AppState, Pasta};
 use askama::Template;
 use axum::Router;

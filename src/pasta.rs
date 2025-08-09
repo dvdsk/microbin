@@ -7,7 +7,6 @@ use crate::util::hashids::to_hashids;
 use crate::util::syntaxhighlighter::html_highlight;
 use bytesize::ByteSize;
 use chrono::{Datelike, Local, TimeZone, Timelike};
-use db::entities::pasta;
 use db::entities::pasta::PastaEntity;
 use serde::{Deserialize, Serialize};
 use std::fmt;

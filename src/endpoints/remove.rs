@@ -5,7 +5,7 @@ use crate::pasta::{Pasta, PastaFile};
 use crate::util::animalnumbers::to_u64;
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{decrypt, remove_expired};
+use crate::util::misc::decrypt;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -27,7 +27,7 @@ pub async fn remove(
 
     let opt_pasta = db.get_pasta(&id)?;
 
-    let mut pasta: Pasta = match opt_pasta {
+    let pasta: Pasta = match opt_pasta {
         Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
         None => {
             // otherwise, send pasta not found error
@@ -120,7 +120,7 @@ pub async fn post_remove(
 
     let opt_pasta = db.get_pasta(&id)?;
 
-    let mut pasta: Pasta = match opt_pasta {
+    let pasta: Pasta = match opt_pasta {
         Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
         None => {
             // otherwise, send pasta not found error

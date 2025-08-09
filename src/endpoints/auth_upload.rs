@@ -8,7 +8,7 @@ use crate::util::hashids::to_u64 as hashid_to_u64;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Path, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use db::entities::pasta::PastaEntity;
@@ -292,7 +292,7 @@ pub async fn auth_file_with_status(
 
     let opt_pasta = db.get_pasta(&intern_id)?;
 
-    let mut pasta: Pasta = match opt_pasta {
+    let pasta: Pasta = match opt_pasta {
         Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
         None => {
             let mut headers = HeaderMap::new();

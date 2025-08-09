@@ -116,7 +116,7 @@ impl Database for SqLite {
     }
 
     fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>, DBError> {
-        let mut pool = self.pool.get().expect("should get connection from pool");
+        let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare(
             "SELECT\
          * FROM pasta WHERE id = ?1",
@@ -161,7 +161,7 @@ impl Database for SqLite {
     }
 
     fn find_all_public_pastas(&self) -> Result<Vec<PastaEntity>, DBError> {
-        let mut pool = self.pool.get().expect("should get connection from pool");
+        let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare(
             "SELECT * FROM pasta WHERE private = 0 ORDER BY created \
             ASC",
@@ -176,7 +176,7 @@ impl Database for SqLite {
     }
 
     fn delete_pasta(&self, id: &u64) -> Result<(), DBError> {
-        let mut pool = self.pool.get().expect("should get connection from pool");
+        let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare("DELETE  FROM pasta WHERE id = ?1")?;
         stmt.execute(params![id])?;
         Ok(())
@@ -186,17 +186,17 @@ impl Database for SqLite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database_args::SqliteProperties;
 
     #[test]
     fn test_create_and_insert_pasta() {
-        let sqlite_props = SqliteProperties {
-            db_path: ":memory:".to_string(),
-            in_memory: true,
-        };
-        let db = SqLite::new(super::super::super::test_utils::test_util::create_test_sqlite_properties()).expect("Failed to \
+        let db = SqLite::new(
+            super::super::super::test_utils::test_util::create_test_sqlite_properties(),
+        )
+        .expect(
+            "Failed to \
         create \
-        SQLite database");
+        SQLite database",
+        );
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -211,7 +211,10 @@ mod tests {
 
     #[test]
     fn test_create_and_insert_update_pasta() {
-        let db = SqLite::new(super::super::super::test_utils::test_util::create_test_sqlite_properties()).expect("Failed to create SQLite database");
+        let db = SqLite::new(
+            super::super::super::test_utils::test_util::create_test_sqlite_properties(),
+        )
+        .expect("Failed to create SQLite database");
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -224,20 +227,25 @@ mod tests {
         let retrieved_pasta = retrieved_pasta.expect("Pasta should exist");
         assert_eq!(retrieved_pasta.id, pasta.id);
 
-        let updated_pasta = super::super::super::test_utils::test_util
-        ::create_random_pasta_entity();
+        let updated_pasta =
+            super::super::super::test_utils::test_util::create_random_pasta_entity();
         db.update_pasta(&pasta.id, updated_pasta.clone())
             .expect("Failed to update pasta");
-        let updated_retrieved_pasta = db.get_pasta(&pasta.id).expect("Failed to get pasta after update");
-        let updated_retrieved_pasta = updated_retrieved_pasta.expect("Pasta should exist after update");
+        let updated_retrieved_pasta = db
+            .get_pasta(&pasta.id)
+            .expect("Failed to get pasta after update");
+        let updated_retrieved_pasta =
+            updated_retrieved_pasta.expect("Pasta should exist after update");
         assert_eq!(updated_retrieved_pasta.id, retrieved_pasta.id);
         assert_ne!(retrieved_pasta.content, updated_retrieved_pasta.content);
     }
 
-
     #[test]
     fn test_find_all_public_pastas() {
-        let db = SqLite::new(super::super::super::test_utils::test_util::create_test_sqlite_properties()).expect("Failed to create SQLite database");
+        let db = SqLite::new(
+            super::super::super::test_utils::test_util::create_test_sqlite_properties(),
+        )
+        .expect("Failed to create SQLite database");
 
         let mut pasta1 = super::super::super::test_utils::test_util::create_random_pasta_entity();
         pasta1.private = true;
@@ -251,7 +259,9 @@ mod tests {
         db.insert_pasta(pasta3.clone())
             .expect("Failed to insert pasta3");
 
-        let public_pastas = db.find_all_public_pastas().expect("Failed to find all public pastas");
+        let public_pastas = db
+            .find_all_public_pastas()
+            .expect("Failed to find all public pastas");
         let all_pastas = db.find_all_pastas().expect("Failed to find all pastas");
         assert_eq!(public_pastas.len(), 2);
         assert!(public_pastas.iter().any(|p| p.id == pasta2.id));
@@ -264,7 +274,10 @@ mod tests {
 
     #[test]
     fn test_delete_pasta() {
-        let db = SqLite::new(super::super::super::test_utils::test_util::create_test_sqlite_properties()).expect("Failed to create SQLite database");
+        let db = SqLite::new(
+            super::super::super::test_utils::test_util::create_test_sqlite_properties(),
+        )
+        .expect("Failed to create SQLite database");
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -274,7 +287,9 @@ mod tests {
         assert_eq!(pastas.len(), 1);
 
         db.delete_pasta(&pasta.id).expect("Failed to delete pasta");
-        let pastas_after_delete = db.find_all_pastas().expect("Failed to find all pastas after delete");
+        let pastas_after_delete = db
+            .find_all_pastas()
+            .expect("Failed to find all pastas after delete");
         assert_eq!(pastas_after_delete.len(), 0);
     }
 }

@@ -155,16 +155,16 @@ pub struct Args {
     pub max_file_size_unencrypted_mb: usize,
 }
 
-impl Into<DatabaseArgs> for Args {
-    fn into(self) -> DatabaseArgs {
-        if self.json_db {
+impl From<Args> for DatabaseArgs {
+    fn from(val: Args) -> Self {
+        if val.json_db {
             DatabaseArgs::JSONDatabaseProperties(db::database_args::JSONDatabaseProperties {
-                file_path: self.data_dir.clone(),
+                file_path: val.data_dir.clone(),
                 file_name: String::from("pasta.json"),
             })
         } else {
             DatabaseArgs::SqliteProperties(db::database_args::SqliteProperties {
-                db_path: format!("{}/database.sqlite", self.data_dir),
+                db_path: format!("{}/database.sqlite", val.data_dir),
                 in_memory: false,
             })
         }

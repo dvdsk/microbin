@@ -2,7 +2,6 @@ use crate::AppState;
 use crate::args::Args;
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
-use crate::util::misc::clean_up_expired_pastes;
 use crate::util::version::{CURRENT_VERSION, Version, fetch_latest_version};
 use askama::Template;
 use axum::Router;

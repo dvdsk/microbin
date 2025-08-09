@@ -24,7 +24,7 @@ use clap::Parser;
 use env_logger::Builder;
 use std::fs;
 use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tower_http::normalize_path::NormalizePathLayer;
 
 pub mod args;
@@ -154,11 +154,7 @@ async fn main() -> std::io::Result<()> {
         .layer(NormalizePathLayer::trim_trailing_slash());
 
     let tcp = tokio::net::TcpListener::bind((args.bind, args.port)).await?;
-    log::info!(
-        "MicroBin starting on http://{}:{}",
-        args.bind.to_string(),
-        args.port.to_string()
-    );
+    log::info!("MicroBin starting on http://{}:{}", args.bind, args.port);
     axum::serve(tcp, app).await?;
     Ok(())
 }

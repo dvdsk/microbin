@@ -2,7 +2,6 @@
 pub mod test_util {
 
     const CHARSET: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    use rand::Rng;
     use random_string::generate;
 
     pub fn create_test_sqlite_properties() -> super::super::super::database_args::SqliteProperties {
@@ -12,10 +11,10 @@ pub mod test_util {
         }
     }
 
-    pub fn create_test_json_db_properties() ->
-                                            super::super::super::database_args::JSONDatabaseProperties {
+    pub fn create_test_json_db_properties()
+    -> super::super::super::database_args::JSONDatabaseProperties {
         super::super::super::database_args::JSONDatabaseProperties {
-            file_path: ".".to_string(),
+            file_path: "./test_data".to_string(),
             file_name: format!("pasta_{}.json", generate(20, CHARSET)),
         }
     }

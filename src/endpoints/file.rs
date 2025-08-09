@@ -3,7 +3,6 @@ use crate::error_handling::AppError;
 use crate::pasta::{Pasta, PastaFile};
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::clean_up_expired_pastes;
 use crate::util::{animalnumbers::to_u64, misc::decrypt_file};
 use axum::extract::{Multipart, Path, State};
 use axum::response::{IntoResponse, Response};
