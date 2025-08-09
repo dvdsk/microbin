@@ -1,8 +1,7 @@
-use crate::{db, AppState};
+use crate::{AppState};
 use crate::args::{Args};
 use crate::error_handling::AppError;
 use crate::pasta::Pasta;
-use crate::util::misc::clean_up_expired_pastes;
 use askama::Template;
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -15,7 +14,8 @@ struct ListTemplate<'a> {
     args: &'a Args,
 }
 
-pub async fn list(State(AppState{args,pastas, db}): State<AppState>) -> Result<impl IntoResponse, AppError> {
+pub async fn list(State(AppState{args, db}): State<AppState>) -> Result<impl IntoResponse,
+    AppError> {
     if args.no_listing {
         return Ok((
             StatusCode::FOUND,
@@ -24,9 +24,7 @@ pub async fn list(State(AppState{args,pastas, db}): State<AppState>) -> Result<i
         ));
     }
 
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
-
+    let mut pastas = db.find_all_public_pastas()?.iter().map(Pasta::from).collect::<Vec<Pasta>>();
     // sort pastas in reverse-chronological order of creation time
     pastas.sort_by(|a, b| b.created.cmp(&a.created));
 

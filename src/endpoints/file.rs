@@ -1,6 +1,6 @@
 use crate::AppState;
 use crate::error_handling::AppError;
-use crate::pasta::Pasta;
+use crate::pasta::{Pasta, PastaFile};
 use crate::util::auth;
 use crate::util::hashids::to_u64 as hashid_to_u64;
 use crate::util::misc::clean_up_expired_pastes;
@@ -12,6 +12,7 @@ use reqwest::header;
 use std::fs::File;
 use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
+use db::entities::pasta::PastaEntity;
 
 pub async fn post_secure_file(
     State(AppState { args, db }): State<AppState>,
@@ -29,27 +30,20 @@ pub async fn post_secure_file(
     };
 
     let pasta_entity = match db.get_pasta(&id)? {
-        Some(pasta) => Ok(pasta),
+        Some(pasta) => Ok::<PastaEntity, AppError>(pasta),
         None => {
-            return Ok((StatusCode::NOT_FOUND).into_response());
+            return Ok(StatusCode::NOT_FOUND.into_response());
         }
     }?;
-
-
-
 
     let pasta: Pasta = pasta_entity.into();
 
     let pasta_file = match pasta.file {
-        Some(pasta_file) => {
-            Ok(pasta_file)
-        }
+        Some(ref pasta_file) => Ok::<&PastaFile, AppError>(pasta_file),
         None => {
             return Ok((StatusCode::NOT_FOUND).into_response());
         }
     }?;
-
-
 
     let file = File::open(format!(
         "{}/attachments/{}/enc",
@@ -80,7 +74,7 @@ pub async fn post_secure_file(
 
 pub async fn get_file(
     Path(id): Path<String>,
-    State(AppState {args, db }): State<AppState>,
+    State(AppState { args, db }): State<AppState>,
 ) -> Result<Response, AppError> {
     let id_intern = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -89,43 +83,37 @@ pub async fn get_file(
     };
 
     let pasta_entity = match db.get_pasta(&id_intern)? {
-        Some(pasta) => Ok(pasta),
+        Some(pasta) => Ok::<PastaEntity, AppError>(pasta),
         None => {
             return Ok((StatusCode::NOT_FOUND).into_response());
         }
     }?;
-
-
-
 
     let pasta: Pasta = pasta_entity.into();
 
     let pasta_file = match pasta.file {
-        Some(pasta_file) => {
-            Ok(pasta_file)
-        }
+        Some(ref pasta_file) => Ok::<&PastaFile, AppError>(pasta_file),
         None => {
-            return Ok((StatusCode::NOT_FOUND).into_response());
+            return Ok(StatusCode::NOT_FOUND.into_response());
         }
     }?;
 
-        if let Some(ref pasta_file) = pastas[index].file {
-            if pastas[index].encrypt_server {
-                return Ok((
-                    StatusCode::FOUND,
-                    [(
-                        header::LOCATION,
-                        format!("/auth_file/{}", pastas[index].id_as_animals(&args.hash_ids)),
-                    )],
-                )
-                    .into_response());
-            }
+    if pasta.encrypt_server {
+        return Ok((
+            StatusCode::FOUND,
+            [(
+                header::LOCATION,
+                format!("/auth_file/{}", pasta.id_as_animals(&args.hash_ids)),
+            )],
+        )
+            .into_response());
+    }
 
         // Construct the path to the file
         let file_path = format!(
             "{}/attachments/{}/{}",
             &args.data_dir,
-            pastas[index].id_as_animals(&args.hash_ids),
+            pasta.id_as_animals(&args.hash_ids),
             pasta_file.name()
         );
         let file_path = PathBuf::from(file_path);
@@ -149,9 +137,6 @@ pub async fn get_file(
         // This takes care of streaming/seeking using the Range
         // header in the request.
         return Ok(response.into_response());
-    }
-
-    Ok((StatusCode::NOT_FOUND).into_response())
 }
 
 pub fn files_router() -> axum::Router<AppState> {

@@ -31,6 +31,29 @@ pub static INSERT_QUERY: &str = r#"INSERT INTO pasta (
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)"#;
 
 
+pub static CREATE_TABLE_QUERY: &str = r#"
+        CREATE TABLE IF NOT EXISTS pasta (
+            id INTEGER PRIMARY KEY,
+            content TEXT NOT NULL,
+            file_name TEXT,
+            file_size INTEGER,
+            extension TEXT NOT NULL,
+            read_only INTEGER NOT NULL,
+            private INTEGER NOT NULL,
+            editable INTEGER NOT NULL,
+            encrypt_server INTEGER NOT NULL,
+            encrypt_client INTEGER NOT NULL,
+            encrypted_key TEXT,
+            created INTEGER NOT NULL,
+            expiration INTEGER NOT NULL,
+            last_read INTEGER NOT NULL,
+            read_count INTEGER NOT NULL,
+            burn_after_reads INTEGER NOT NULL,
+            pasta_type TEXT NOT NULL,
+            hide_read_count INTEGER NOT NULL
+        );"#;
+
+
 pub static SELECT_ALL_QUERY: &str = r#"SELECT * FROM pasta"#;
 
 impl SqLite {
@@ -46,7 +69,7 @@ impl SqLite {
         let pool = r2d2::Pool::new(manager).expect("db pool");
         let conn = pool.get().expect("should get connection from pool");
         conn.execute(
-            INSERT_QUERY,
+            CREATE_TABLE_QUERY,
         []
         )?;
         Ok(SqLite{
