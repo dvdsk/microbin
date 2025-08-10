@@ -64,7 +64,7 @@ pub mod endpoints {
 #[derive(Clone)]
 pub struct AppState {
     pub args: Args,
-    pub db: Arc<Box<dyn Database + Send + Sync>>,
+    pub db: Arc<dyn Database + Send + Sync>,
 }
 
 #[tokio::main]
@@ -109,7 +109,7 @@ async fn main() -> std::io::Result<()> {
     let db_args = args.clone();
     let db = get_database(db_args.into());
     let app_state = AppState {
-        db: Arc::new(db),
+        db,
         args: args.clone(),
     };
 

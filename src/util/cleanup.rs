@@ -3,7 +3,7 @@ use crate::{args::Args, pasta::Pasta, util::misc::clean_up_expired_pastes};
 use db::database::DatabaseType;
 use std::{fs, sync::Arc, thread, time::Duration};
 
-pub fn start_cleanup_thread(db: &Arc<DatabaseType>, args: Args) {
+pub fn start_cleanup_thread(db: &DatabaseType, args: Args) {
     let db = Arc::clone(db);
     thread::spawn(move || {
         log::info!("Started background cleanup thread - running immediately and then every hour");
