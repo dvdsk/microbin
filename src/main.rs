@@ -23,8 +23,8 @@ use axum::extract::DefaultBodyLimit;
 use axum::{Router, middleware};
 use chrono::Local;
 use clap::Parser;
-use env_logger::Builder;
-use std::fs;
+use env_logger::{Builder, Env};
+use std::{env, fs};
 use std::io::Write;
 use std::sync::Arc;
 use tower_http::normalize_path::NormalizePathLayer;
@@ -71,7 +71,14 @@ pub struct AppState {
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    Builder::from_env("MICROBIN_LOG")
+    if env::var("MICROBIN_LOG").is_err() {
+        unsafe { env::set_var("MICROBIN_LOG", "info"); }
+    }
+
+
+    let default_log_env = Env::new().filter_or("MICROBIN_LOG", "info");
+
+    Builder::from_env(default_log_env)
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -149,13 +156,12 @@ async fn main() -> std::io::Result<()> {
         (max_size + 10),
         body_limit
     );
+    log::info!("MicroBin starting on http://{}:{}", args.bind, args.port);
 
     let app = router
         .layer(DefaultBodyLimit::max(body_limit))
         .layer(NormalizePathLayer::trim_trailing_slash());
-
     let tcp = tokio::net::TcpListener::bind((args.bind, args.port)).await?;
-    log::info!("MicroBin starting on http://{}:{}", args.bind, args.port);
     axum::serve(tcp, app).await?;
     Ok(())
 }
