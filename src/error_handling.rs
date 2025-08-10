@@ -2,7 +2,7 @@ use crate::pasta::Pasta;
 use axum::extract::multipart::MultipartError;
 use axum::http;
 use axum::response::{IntoResponse, Response};
-use db::db::error::DBError;
+use color_eyre::Report;
 use magic_crypt::MagicCryptError;
 use reqwest::StatusCode;
 use reqwest::header::InvalidHeaderValue;
@@ -31,8 +31,8 @@ impl AppError {
     }
 }
 
-impl From<DBError> for AppError {
-    fn from(error: DBError) -> Self {
+impl From<Report> for AppError {
+    fn from(error: Report) -> Self {
         log::warn!("Database error: {error}");
         AppError {
             message:

@@ -41,6 +41,7 @@ reqwest = { version = "0.12", default-features = false, features = ["charset",
 "http2", "macos-system-configuration", "json", "blocking"] }
 rust-embed = "8.7.2"
 db = {path =  "./db"}
+color-eyre = "0.6.5"
 
 # The rustls-rustcrypto version must support the rustls version, and the
 # rustls version must match the one expected by reqwest;

@@ -1,7 +1,7 @@
 use crate::database::Database;
 use crate::database_args::JSONDatabaseProperties;
-use crate::db::error::DBError;
 use crate::entities::pasta::PastaEntity;
+use eyre::{Context, Result};
 use std::path::PathBuf;
 
 pub struct JsonDatabase {
@@ -9,7 +9,7 @@ pub struct JsonDatabase {
 }
 
 impl JsonDatabase {
-    pub fn new(args: JSONDatabaseProperties) -> Result<Self, DBError> {
+    pub fn new(args: JSONDatabaseProperties) -> Result<Self> {
         let path_to_use = PathBuf::from(args.file_path)
             .join(args.file_name)
             .to_str()
@@ -29,13 +29,13 @@ impl JsonDatabase {
         std::fs::read_to_string(&path_to_use)?;
         Ok(Self { path: path_to_use })
     }
-    pub fn read_json(&self) -> Result<Vec<PastaEntity>, crate::db::error::DBError> {
+    pub fn read_json(&self) -> Result<Vec<PastaEntity>> {
         let data = std::fs::read_to_string(&self.path)?;
         serde_json::from_str::<Vec<PastaEntity>>(&data)
-            .map_err(|e| DBError::parse_error(&format!("Failed to parse JSON: {}", e)))
+            .wrap_err("Unable to deserialize json while reading pastas")
     }
 
-    pub fn write_json(&self, pastas: &Vec<PastaEntity>) -> Result<(), crate::db::error::DBError> {
+    pub fn write_json(&self, pastas: &Vec<PastaEntity>) -> Result<()> {
         let data = serde_json::to_string(pastas)?;
         std::fs::write(&self.path, &data)?;
         Ok(())
@@ -43,19 +43,19 @@ impl JsonDatabase {
 }
 
 impl Database for JsonDatabase {
-    fn insert_pasta(&self, pasta: PastaEntity) -> Result<(), DBError> {
+    fn insert_pasta(&self, pasta: PastaEntity) -> Result<()> {
         let mut current_pastas = self.read_json()?;
         current_pastas.push(pasta);
         self.write_json(&current_pastas)?;
         Ok(())
     }
 
-    fn find_all_pastas(&self) -> Result<Vec<PastaEntity>, DBError> {
+    fn find_all_pastas(&self) -> Result<Vec<PastaEntity>> {
         let pastas = self.read_json()?;
         Ok(pastas)
     }
 
-    fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>, DBError> {
+    fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>> {
         let pastas = self.read_json()?;
         for pasta in pastas {
             if pasta.id == *id {
@@ -65,7 +65,7 @@ impl Database for JsonDatabase {
         Ok(None)
     }
 
-    fn update_pasta(&self, id: &u64, pasta_updated: PastaEntity) -> Result<PastaEntity, DBError> {
+    fn update_pasta(&self, id: &u64, pasta_updated: PastaEntity) -> Result<PastaEntity> {
         let mut pastas = self.read_json()?;
         for pasta in pastas.iter_mut() {
             if pasta.id == *id {
@@ -77,15 +77,10 @@ impl Database for JsonDatabase {
                 return Ok(cloned_pasta);
             }
         }
-        Err(DBError::not_found(&format!(
-            "Pasta with id {} not found",
-            id
-        )))
+        Err(eyre::eyre!("Pasta with ID {} not found", id))
     }
 
-    fn find_all_public_pastas(
-        &self,
-    ) -> Result<Vec<crate::entities::pasta::PastaEntity>, crate::db::error::DBError> {
+    fn find_all_public_pastas(&self) -> Result<Vec<PastaEntity>> {
         let all_pastas = self.find_all_pastas()?;
         Ok(all_pastas
             .into_iter()
@@ -93,7 +88,7 @@ impl Database for JsonDatabase {
             .collect())
     }
 
-    fn delete_pasta(&self, id: &u64) -> Result<(), DBError> {
+    fn delete_pasta(&self, id: &u64) -> Result<()> {
         let mut pastas = self.read_json()?;
         pastas.retain(|pasta| pasta.id != *id);
         self.write_json(&pastas)?;

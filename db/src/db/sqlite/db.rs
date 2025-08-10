@@ -1,7 +1,7 @@
 pub use crate::database::Database;
 use crate::database_args::SqliteProperties;
-use crate::db::error::DBError;
 use crate::entities::pasta::PastaEntity;
+use eyre::Result;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::params;
 
@@ -71,7 +71,7 @@ impl SqLite {
 }
 
 impl Database for SqLite {
-    fn insert_pasta(&self, pasta: PastaEntity) -> Result<(), DBError> {
+    fn insert_pasta(&self, pasta: PastaEntity) -> Result<()> {
         self.pool
             .get()
             .expect("should get connection from pool")
@@ -102,7 +102,7 @@ impl Database for SqLite {
         Ok(())
     }
 
-    fn find_all_pastas(&self) -> Result<Vec<PastaEntity>, DBError> {
+    fn find_all_pastas(&self) -> Result<Vec<PastaEntity>> {
         let pool = self.pool.get().expect("should get connection from pool");
 
         let mut stmt = pool.prepare("SELECT * FROM pasta ORDER BY created ASC")?;
@@ -115,7 +115,7 @@ impl Database for SqLite {
             .collect::<Vec<PastaEntity>>())
     }
 
-    fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>, DBError> {
+    fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>> {
         let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare(
             "SELECT\
@@ -126,12 +126,12 @@ impl Database for SqLite {
             Ok(pasta) => Ok(Some(pasta)),
             Err(e) => match e {
                 rusqlite::Error::QueryReturnedNoRows => Ok(None),
-                _ => Err(DBError::from(e)),
+                e => Err(e.into()),
             },
         }
     }
 
-    fn update_pasta(&self, id: &u64, pasta: PastaEntity) -> Result<PastaEntity, DBError> {
+    fn update_pasta(&self, id: &u64, pasta: PastaEntity) -> Result<PastaEntity> {
         let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare(
             "UPDATE pasta SET content = ?1, file_name = ?2, file_size = ?3, extension = ?4, private = ?5, read_only = ?6, editable = ?7, encrypt_server = ?8, encrypt_client = ?9, encrypted_key = ?10, created = ?11, expiration = ?12, last_read = ?13, read_count = ?14, burn_after_reads = ?15, pasta_type = ?16 WHERE id = ?17"
@@ -160,7 +160,7 @@ impl Database for SqLite {
         Ok(pasta)
     }
 
-    fn find_all_public_pastas(&self) -> Result<Vec<PastaEntity>, DBError> {
+    fn find_all_public_pastas(&self) -> Result<Vec<PastaEntity>> {
         let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare(
             "SELECT * FROM pasta WHERE private = 0 ORDER BY created \
@@ -175,7 +175,7 @@ impl Database for SqLite {
             .collect::<Vec<PastaEntity>>())
     }
 
-    fn delete_pasta(&self, id: &u64) -> Result<(), DBError> {
+    fn delete_pasta(&self, id: &u64) -> Result<()> {
         let pool = self.pool.get().expect("should get connection from pool");
         let mut stmt = pool.prepare("DELETE  FROM pasta WHERE id = ?1")?;
         stmt.execute(params![id])?;

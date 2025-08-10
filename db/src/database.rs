@@ -1,17 +1,18 @@
 use crate::database_args::DatabaseArgs;
-use crate::db::error::DBError;
 use crate::db::json::db::JsonDatabase;
 use crate::db::sqlite::db::SqLite;
 use crate::entities::pasta::PastaEntity;
+use color_eyre::eyre;
+use eyre::Result;
 use std::sync::Arc;
 
 pub trait Database {
-    fn insert_pasta(&self, pasta: PastaEntity) -> Result<(), DBError>;
-    fn find_all_pastas(&self) -> Result<Vec<PastaEntity>, DBError>;
-    fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>, DBError>;
-    fn update_pasta(&self, id: &u64, pasta: PastaEntity) -> Result<PastaEntity, DBError>;
-    fn find_all_public_pastas(&self) -> Result<Vec<PastaEntity>, DBError>;
-    fn delete_pasta(&self, id: &u64) -> Result<(), DBError>;
+    fn insert_pasta(&self, pasta: PastaEntity) -> Result<()>;
+    fn find_all_pastas(&self) -> Result<Vec<PastaEntity>>;
+    fn get_pasta(&self, id: &u64) -> Result<Option<PastaEntity>>;
+    fn update_pasta(&self, id: &u64, pasta: PastaEntity) -> Result<PastaEntity>;
+    fn find_all_public_pastas(&self) -> Result<Vec<PastaEntity>>;
+    fn delete_pasta(&self, id: &u64) -> Result<()>;
 }
 
 pub type DatabaseType = Arc<dyn Database + Send + Sync>;

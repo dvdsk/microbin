@@ -2,7 +2,6 @@ pub mod database;
 pub mod database_args;
 
 pub mod db {
-    pub mod error;
     mod test_utils;
     pub mod sqlite {
         pub mod db;
