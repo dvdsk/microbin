@@ -24,9 +24,9 @@ use axum::{Router, middleware};
 use chrono::Local;
 use clap::Parser;
 use env_logger::{Builder, Env};
-use std::{env, fs};
 use std::io::Write;
 use std::sync::Arc;
+use std::{env, fs};
 use tower_http::normalize_path::NormalizePathLayer;
 
 pub mod args;
@@ -72,9 +72,10 @@ async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
     if env::var("MICROBIN_LOG").is_err() {
-        unsafe { env::set_var("MICROBIN_LOG", "info"); }
+        unsafe {
+            env::set_var("MICROBIN_LOG", "info");
+        }
     }
-
 
     let default_log_env = Env::new().filter_or("MICROBIN_LOG", "info");
 
