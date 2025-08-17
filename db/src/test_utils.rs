@@ -11,8 +11,7 @@ pub mod test_util {
         }
     }
 
-    pub fn create_test_json_db_properties()
-    -> super::super::database_args::JSONDatabaseProperties {
+    pub fn create_test_json_db_properties() -> super::super::database_args::JSONDatabaseProperties {
         super::super::database_args::JSONDatabaseProperties {
             file_path: "./test_data".to_string(),
             file_name: format!("pasta_{}.json", generate(20, CHARSET)),

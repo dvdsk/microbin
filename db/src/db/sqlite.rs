@@ -192,11 +192,11 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-            .expect(
-                "Failed to \
+        .expect(
+            "Failed to \
         create \
         SQLite database",
-            );
+        );
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -214,7 +214,7 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-            .expect("Failed to create SQLite database");
+        .expect("Failed to create SQLite database");
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -245,7 +245,7 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-            .expect("Failed to create SQLite database");
+        .expect("Failed to create SQLite database");
 
         let mut pasta1 = super::super::super::test_utils::test_util::create_random_pasta_entity();
         pasta1.private = true;
@@ -277,7 +277,7 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-            .expect("Failed to create SQLite database");
+        .expect("Failed to create SQLite database");
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
