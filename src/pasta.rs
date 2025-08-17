@@ -3,6 +3,7 @@ use crate::util::hashids::to_hashids;
 use crate::util::syntaxhighlighter::html_highlight;
 use bytesize::ByteSize;
 use chrono::{Datelike, Local, TimeZone, Timelike};
+use db::entities::pasta::PastaEntity;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::Path;
@@ -70,6 +71,65 @@ pub struct Pasta {
     pub read_count: u64,
     pub burn_after_reads: u64,
     pub pasta_type: String,
+}
+
+impl From<Pasta> for PastaEntity {
+    fn from(pasta: Pasta) -> Self {
+        PastaEntity {
+            id: pasta.id,
+            content: pasta.content,
+            file_name: pasta.file.clone().map(|f| f.name),
+            file_size: pasta.file.map(|f| f.size.as_u64()).map(|u| u as i64),
+            extension: pasta.extension,
+            read_only: pasta.readonly,
+            private: pasta.private,
+            editable: i32::from(pasta.editable),
+            encrypt_server: i32::from(pasta.encrypt_server),
+            encrypt_client: i32::from(pasta.encrypt_client),
+            encrypted_key: pasta.encrypted_key,
+            created: pasta.created,
+            expiration: pasta.expiration,
+            last_read: pasta.last_read,
+            read_count: pasta.read_count as i64,
+            burn_after_reads: pasta.burn_after_reads as i64,
+            pasta_type: pasta.pasta_type,
+            hide_read_count: pasta.hide_read_count,
+        }
+    }
+}
+
+impl From<&PastaEntity> for Pasta {
+    fn from(value: &PastaEntity) -> Self {
+        let cloned_pasta_entity = value.clone();
+        Pasta::from(cloned_pasta_entity)
+    }
+}
+
+impl From<PastaEntity> for Pasta {
+    fn from(pasta: PastaEntity) -> Self {
+        Pasta {
+            id: pasta.id,
+            content: pasta.content,
+            file: pasta.file_name.map(|name| PastaFile {
+                name,
+                size: ByteSize::b(pasta.file_size.unwrap_or(0) as u64),
+            }),
+            extension: pasta.extension,
+            private: pasta.private,
+            readonly: pasta.read_only,
+            editable: pasta.editable != 0,
+            hide_read_count: pasta.hide_read_count,
+            encrypt_server: pasta.encrypt_server != 0,
+            encrypt_client: pasta.encrypt_client != 0,
+            encrypted_key: pasta.encrypted_key,
+            created: pasta.created,
+            expiration: pasta.expiration,
+            last_read: pasta.last_read,
+            read_count: pasta.read_count as u64,
+            burn_after_reads: pasta.burn_after_reads as u64,
+            pasta_type: pasta.pasta_type,
+        }
+    }
 }
 
 impl Pasta {

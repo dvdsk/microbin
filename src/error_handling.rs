@@ -2,6 +2,7 @@ use crate::pasta::Pasta;
 use axum::extract::multipart::MultipartError;
 use axum::http;
 use axum::response::{IntoResponse, Response};
+use color_eyre::Report;
 use magic_crypt::MagicCryptError;
 use reqwest::StatusCode;
 use reqwest::header::InvalidHeaderValue;
@@ -26,6 +27,19 @@ impl AppError {
         AppError {
             message: message.into(),
             code: StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+impl From<Report> for AppError {
+    fn from(error: Report) -> Self {
+        log::warn!("Database error: {error}");
+        AppError {
+            message:
+                "An error occurred while accessing the database. Please check the server logs \
+            if you are the server admin"
+                    .to_string(),
+            code: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

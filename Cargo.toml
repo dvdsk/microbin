@@ -12,6 +12,10 @@ repository = "https://github.com/dvdsk/microbin"
 keywords = ["pastebin", "filesharing", "microbin", "axum", "selfhosted"]
 categories = ["multimedia"]
 
+
+[workspace]
+members = [".", "db"]
+
 [dependencies]
 axum = { version = "0.8.4", features = ["multipart", "macros"] }
 tokio-util={version = "0.7.15"}
@@ -35,8 +39,9 @@ qrcode-generator = "5.0.0"
 rand = "0.9.1"
 reqwest = { version = "0.12", default-features = false, features = ["charset",
 "http2", "macos-system-configuration", "json", "blocking"] }
-rusqlite = { version = "0.37.0", features = ["bundled"], optional = true }
 rust-embed = "8.7.2"
+db = {path =  "./db"}
+color-eyre = "0.6.5"
 
 # The rustls-rustcrypto version must support the rustls version, and the
 # rustls version must match the one expected by reqwest;
@@ -52,7 +57,7 @@ bytes = "1.8.0"
 base64 = "0.22.1"
 
 [features]
-default = ["__rustcrypto-tls", "__syntect-fast", "dep:rusqlite"]
+default = ["__rustcrypto-tls", "__syntect-fast"]
 no-c-deps = ["__rustcrypto-tls", "__syntect-rust"]
 
 __rustcrypto-tls = ["reqwest/rustls-tls-manual-roots-no-provider", "dep:rustls", "dep:rustls-rustcrypto", "webpki-roots"]

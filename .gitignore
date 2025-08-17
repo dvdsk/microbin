@@ -17,3 +17,6 @@ microbin_data/*
 
 # Ignore JetBrains IDEs project files
 .idea
+
+# Ignore test data
+test_data/

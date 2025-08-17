@@ -17,16 +17,16 @@ use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
 use crate::util::auth::auth_validator;
 use crate::util::cleanup::start_cleanup_thread;
-use crate::util::db::read_all;
 use crate::util::telemetry::start_telemetry_thread;
+use ::db::database::{Database, get_database};
 use axum::extract::DefaultBodyLimit;
 use axum::{Router, middleware};
 use chrono::Local;
 use clap::Parser;
-use env_logger::Builder;
-use std::fs;
+use env_logger::{Builder, Env};
 use std::io::Write;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::{env, fs};
 use tower_http::normalize_path::NormalizePathLayer;
 
 pub mod args;
@@ -37,10 +37,6 @@ pub mod util {
     pub mod animalnumbers;
     pub mod auth;
     pub mod cleanup;
-    pub mod db;
-    pub mod db_json;
-    #[cfg(feature = "default")]
-    pub mod db_sqlite;
     pub mod hashids;
     pub mod http_client;
     pub mod misc;
@@ -67,15 +63,23 @@ pub mod endpoints {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pastas: Arc<Mutex<Vec<Pasta>>>,
     pub args: Args,
+    pub db: Arc<dyn Database + Send + Sync>,
 }
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    Builder::from_env("MICROBIN_LOG")
+    if env::var("MICROBIN_LOG").is_err() {
+        unsafe {
+            env::set_var("MICROBIN_LOG", "info");
+        }
+    }
+
+    let default_log_env = Env::new().filter_or("MICROBIN_LOG", "info");
+
+    Builder::from_env(default_log_env)
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -86,12 +90,6 @@ async fn main() -> std::io::Result<()> {
             )
         })
         .init();
-
-    log::info!(
-        "MicroBin starting on http://{}:{}",
-        args.bind.to_string(),
-        args.port.to_string()
-    );
 
     match fs::create_dir_all(format!("{}/public", args.data_dir)) {
         Ok(dir) => dir,
@@ -108,12 +106,14 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    let db_args = args.clone();
+    let db = get_database(db_args.into());
     let app_state = AppState {
-        pastas: Arc::new(Mutex::new(read_all(&args))),
+        db,
         args: args.clone(),
     };
 
-    start_cleanup_thread(Arc::clone(&app_state.pastas), args.clone());
+    start_cleanup_thread(&app_state.db, args.clone());
 
     let mut router = Router::new()
         .merge(create_routes())
@@ -157,13 +157,12 @@ async fn main() -> std::io::Result<()> {
         (max_size + 10),
         body_limit
     );
+    log::info!("MicroBin starting on http://{}:{}", args.bind, args.port);
 
     let app = router
         .layer(DefaultBodyLimit::max(body_limit))
         .layer(NormalizePathLayer::trim_trailing_slash());
-
     let tcp = tokio::net::TcpListener::bind((args.bind, args.port)).await?;
-
     axum::serve(tcp, app).await?;
     Ok(())
 }

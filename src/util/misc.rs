@@ -1,7 +1,7 @@
-use super::db::delete;
 use crate::Pasta;
 use crate::args::Args;
 use crate::error_handling::AppError;
+use db::database::DatabaseType;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use qrcode_generator::QrCodeEcc;
@@ -10,7 +10,7 @@ use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
+pub fn clean_up_expired_pastes(args: &Args, db: &DatabaseType) -> Result<(), AppError> {
     // get current time - this will be needed to check which pastas have expired
     let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
@@ -20,7 +20,13 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
         }
     } as i64;
 
-    pastas.retain(|p| {
+    let pastas = db
+        .find_all_pastas()?
+        .iter()
+        .map(Pasta::from)
+        .collect::<Vec<Pasta>>();
+
+    for p in pastas {
         // keep if:
         //  expiration is `never` or not reached
         //  AND
@@ -32,8 +38,10 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
             && (p.last_read_days_ago() < args.gc_days || args.gc_days == 0)
         {
             // keep
-            true
+            continue;
         } else {
+            // remove from database
+            db.delete_pasta(&p.id)?;
             log::debug!(
                 "Removing expired pasta ID: {} ({})",
                 p.id,
@@ -61,7 +69,7 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
                 );
             }
 
-            delete(None, Some(p.id), args);
+            db.delete_pasta(&p.id)?;
 
             // remove the file itself
             if let Some(file) = &p.file {
@@ -89,9 +97,9 @@ pub fn clean_up_expired_pastes(pastas: &mut Vec<Pasta>, args: &Args) {
                     log::debug!("Successfully deleted directory: {}", dir_path);
                 }
             }
-            false
         }
-    });
+    }
+    Ok(())
 }
 
 pub fn string_to_qr_svg(str: &str) -> String {

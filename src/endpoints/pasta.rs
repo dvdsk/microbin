@@ -5,9 +5,7 @@ use crate::error_handling::AppError;
 use crate::pasta::Pasta;
 use crate::util::animalnumbers::to_u64;
 use crate::util::auth;
-use crate::util::db::update;
 use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::clean_up_expired_pastes;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -25,12 +23,11 @@ struct PastaTemplate<'a> {
 }
 
 fn pastaresponse(
-    AppState { pastas, args }: AppState,
+    AppState { args, db }: AppState,
     id: String,
     password: String,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -38,105 +35,94 @@ fn pastaresponse(
         to_u64(&id).unwrap_or(0)
     };
 
-    // remove expired pastas (including this one if needed)
-    clean_up_expired_pastes(&mut pastas, &args);
+    let opt_pasta = db.get_pasta(&id)?;
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
+    let mut pasta: Pasta = match opt_pasta {
+        Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
+        None => {
+            // otherwise, send pasta not found error
+            return Ok((
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
+                ErrorTemplate { args: &args }.render()?,
+            ));
         }
+    }?;
+
+    if pasta.encrypt_server && password == *"" {
+        return Ok((
+            StatusCode::FOUND,
+            [(
+                header::LOCATION,
+                format!(
+                    "{}/auth/{}",
+                    args.public_path_as_str(),
+                    pasta.id_as_animals(&args.hash_ids)
+                ),
+            )],
+            "".to_string(),
+        ));
     }
 
-    if found {
-        if pastas[index].encrypt_server && password == *"" {
+    // increment read count
+    pasta.read_count += 1;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+    let original_content = pasta.content.to_owned();
+
+    // decrypt content temporarily
+    if password != *"" && !original_content.is_empty() {
+        let res = decrypt(&original_content, &password);
+        if let Ok(rs) = res {
+            pasta.content.replace_range(.., rs.as_str());
+        } else {
             return Ok((
                 StatusCode::FOUND,
                 [(
                     header::LOCATION,
                     format!(
-                        "{}/auth/{}",
+                        "{}/auth/{}/incorrect",
                         args.public_path_as_str(),
-                        pastas[index].id_as_animals(&args.hash_ids)
+                        pasta.id_as_animals(&args.hash_ids)
                     ),
                 )],
                 "".to_string(),
             ));
         }
-
-        // increment read count
-        pastas[index].read_count += 1;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]), &args);
-
-        let original_content = pastas[index].content.to_owned();
-
-        // decrypt content temporarily
-        if password != *"" && !original_content.is_empty() {
-            let res = decrypt(&original_content, &password);
-            if let Ok(rs) = res {
-                pastas[index].content.replace_range(.., rs.as_str());
-            } else {
-                return Ok((
-                    StatusCode::FOUND,
-                    [(
-                        header::LOCATION,
-                        format!(
-                            "{}/auth/{}/incorrect",
-                            args.public_path_as_str(),
-                            pastas[index].id_as_animals(&args.hash_ids)
-                        ),
-                    )],
-                    "".to_string(),
-                ));
-            }
-        }
-
-        // serve pasta in template
-        let pasta_template = PastaTemplate {
-            pasta: &pastas[index],
-            args: &args,
-        }
-        .render()?;
-        let response = (
-            StatusCode::OK,
-            [(header::CONTENT_TYPE, "text/html charset=utf-8".to_string())],
-            pasta_template,
-        );
-
-        if pastas[index].content != original_content {
-            pastas[index].content = original_content;
-        }
-
-        // get current unix time in seconds
-        let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(n) => n.as_secs(),
-            Err(_) => {
-                log::error!("SystemTime before UNIX EPOCH!");
-                0
-            }
-        } as i64;
-
-        // update last read time
-        pastas[index].last_read = timenow;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]), &args);
-
-        return Ok(response);
     }
 
-    // otherwise, send pasta not found error
-    Ok((
+    // serve pasta in template
+    let pasta_template = PastaTemplate {
+        pasta: &pasta,
+        args: &args,
+    }
+    .render()?;
+    let response = (
         StatusCode::OK,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &args }.render()?,
-    ))
+        [(header::CONTENT_TYPE, "text/html charset=utf-8".to_string())],
+        pasta_template,
+    );
+
+    if pasta.content != original_content {
+        pasta.content = original_content;
+    }
+
+    // get current unix time in seconds
+    let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => {
+            log::error!("SystemTime before UNIX EPOCH!");
+            0
+        }
+    } as i64;
+
+    // update last read time
+    pasta.last_read = timenow;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+    Ok(response)
 }
 
 pub async fn postpasta(
@@ -168,12 +154,8 @@ pub async fn getshortpasta(
     pastaresponse(data, id, String::from(""))
 }
 
-fn urlresponse(
-    AppState { pastas, args }: AppState,
-    id: String,
-) -> Result<impl IntoResponse, AppError> {
+fn urlresponse(AppState { args, db }: AppState, id: String) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -181,68 +163,56 @@ fn urlresponse(
         to_u64(&id).unwrap_or(0)
     };
 
-    // remove expired pastas (including this one if needed)
-    clean_up_expired_pastes(&mut pastas, &args);
+    let opt_pasta = db.get_pasta(&id)?;
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
-        // increment read count
-        pastas[index].read_count += 1;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]), &args);
-
-        // send redirect if it's a url pasta
-        if pastas[index].pasta_type == "url" {
-            let response = (
-                StatusCode::FOUND,
-                [(header::LOCATION, pastas[index].content.to_string())],
-                "".to_string(),
-            );
-
-            // get current unix time in seconds
-            let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
-                Ok(n) => n.as_secs(),
-                Err(_) => {
-                    log::error!("SystemTime before UNIX EPOCH!");
-                    0
-                }
-            } as i64;
-
-            // update last read time
-            pastas[index].last_read = timenow;
-
-            // save the updated read count
-            update(Some(&pastas), Some(&pastas[index]), &args);
-
-            return Ok(response);
-        // send error if we're trying to open a non-url pasta as a redirect
-        } else {
-            let response = (
+    let mut pasta: Pasta = match opt_pasta {
+        Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
+        None => {
+            // otherwise, send pasta not found error
+            return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
                 ErrorTemplate { args: &args }.render()?,
-            );
-            return Ok(response);
+            ));
         }
-    }
+    }?;
+    // increment read count
+    pasta.read_count += 1;
 
-    Ok((
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &args }.render()?,
-    ))
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+    // send redirect if it's a url pasta
+    if pasta.pasta_type == "url" {
+        let response = (
+            StatusCode::FOUND,
+            [(header::LOCATION, pasta.content.to_string())],
+            "".to_string(),
+        );
+
+        // get current unix time in seconds
+        let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
+            Ok(n) => n.as_secs(),
+            Err(_) => {
+                log::error!("SystemTime before UNIX EPOCH!");
+                0
+            }
+        } as i64;
+
+        // update last read time
+        pasta.last_read = timenow;
+
+        // save the updated read count
+        db.update_pasta(&id, pasta.clone().into())?;
+        Ok(response)
+    // send error if we're trying to open a non-url pasta as a redirect
+    } else {
+        let response = (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
+            ErrorTemplate { args: &args }.render()?,
+        );
+        Ok(response)
+    }
 }
 
 pub async fn redirecturl(
@@ -260,11 +230,10 @@ pub async fn shortredirecturl(
 }
 
 pub async fn getrawpasta(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState { args, db }): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     // get access to the pasta collection
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
 
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
@@ -272,204 +241,179 @@ pub async fn getrawpasta(
         to_u64(&id).unwrap_or(0)
     };
 
-    // remove expired pastas (including this one if needed)
-    clean_up_expired_pastes(&mut pastas, &args);
+    let opt_pasta = db.get_pasta(&id)?;
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
-        }
-    }
-
-    if found {
-        if pastas[index].encrypt_server {
+    let mut pasta: Pasta = match opt_pasta {
+        Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
+        None => {
+            // otherwise, send pasta not found error
             return Ok((
-                StatusCode::FOUND,
-                [(
-                    header::LOCATION,
-                    format!(
-                        "{}/auth_raw/{}",
-                        args.public_path_as_str(),
-                        pastas[index].id_as_animals(&args.hash_ids)
-                    ),
-                )],
-                "".to_string(),
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
+                ErrorTemplate { args: &args }.render()?,
             ));
         }
-
-        // increment read count
-        pastas[index].read_count += 1;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]), &args);
-
-        // get current unix time in seconds
-        let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(n) => n.as_secs(),
-            Err(_) => {
-                log::error!("SystemTime before UNIX EPOCH!");
-                0
-            }
-        } as i64;
-
-        // update last read time
-        pastas[index].last_read = timenow;
-
-        // send raw content of pasta
-        let selected_pasta = pastas[index].content.to_owned();
-
-        let response = (
-            StatusCode::OK,
+    }?;
+    if pasta.encrypt_server {
+        return Ok((
+            StatusCode::FOUND,
             [(
-                header::CONTENT_TYPE,
-                "text/plain;  \
-        charset=utf-8"
-                    .to_string(),
+                header::LOCATION,
+                format!(
+                    "{}/auth_raw/{}",
+                    args.public_path_as_str(),
+                    pasta.id_as_animals(&args.hash_ids)
+                ),
             )],
-            selected_pasta,
-        );
-
-        return Ok(response);
+            "".to_string(),
+        ));
     }
 
-    // otherwise send pasta not found error as raw text
-    log::warn!("Pasta with id {} not found!", id);
-    Ok((
-        StatusCode::NOT_FOUND,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        "Upload not\
-     found! :-("
-            .to_string(),
-    ))
+    // increment read count
+    pasta.read_count += 1;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+
+    // get current unix time in seconds
+    let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => {
+            log::error!("SystemTime before UNIX EPOCH!");
+            0
+        }
+    } as i64;
+
+    // update last read time
+    pasta.last_read = timenow;
+
+    // send raw content of pasta
+    let selected_pasta = pasta.content.to_owned();
+
+    let response = (
+        StatusCode::OK,
+        [(
+            header::CONTENT_TYPE,
+            "text/plain;  \
+        charset=utf-8"
+                .to_string(),
+        )],
+        selected_pasta,
+    );
+
+    Ok(response)
 }
 
 pub async fn postrawpasta(
-    State(AppState { pastas, args }): State<AppState>,
+    State(AppState { args, db }): State<AppState>,
     Path(id): Path<String>,
     payload: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
     let password = auth::password_from_multipart(payload).await?;
 
-    // get access to the pasta collection
-    let mut pastas = pastas.lock().expect("no microbin thread should panic");
-
     let id = if args.hash_ids {
         hashid_to_u64(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
 
-    // remove expired pastas (including this one if needed)
-    clean_up_expired_pastes(&mut pastas, &args);
+    let opt_pasta = db.get_pasta(&id)?;
 
-    // find the index of the pasta in the collection based on u64 id
-    let mut index: usize = 0;
-    let mut found: bool = false;
-    for (i, pasta) in pastas.iter().enumerate() {
-        if pasta.id == id {
-            index = i;
-            found = true;
-            break;
+    let mut pasta: Pasta = match opt_pasta {
+        Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
+        None => {
+            // otherwise, send pasta not found error
+            return Ok((
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
+                ErrorTemplate { args: &args }.render()?,
+            ));
         }
-    }
+    }?;
 
-    if found {
-        if pastas[index].encrypt_server && password == *"" {
-            let mut headers = HeaderMap::new();
-            headers.insert(
-                "Location",
+    if pasta.encrypt_server && password == *"" {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Location",
+            format!(
+                "{}/auth/{}",
+                args.public_path_as_str(),
+                pasta.id_as_animals(&args.hash_ids)
+            )
+            .parse()?,
+        );
+        return Ok((
+            StatusCode::FOUND,
+            [(
+                header::LOCATION,
                 format!(
                     "{}/auth/{}",
                     args.public_path_as_str(),
-                    pastas[index].id_as_animals(&args.hash_ids)
-                )
-                .parse()?,
-            );
+                    pasta.id_as_animals(&args.hash_ids)
+                ),
+            )],
+            "".to_string(),
+        ));
+    }
+
+    // increment read count
+    pasta.read_count += 1;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+
+    let original_content = pasta.content.to_owned();
+
+    // decrypt content temporarily
+    if password != *"" {
+        let res = decrypt(&original_content, &password);
+        if let Ok(rs) = res {
+            pasta.content.replace_range(.., rs.as_str());
+        } else {
             return Ok((
                 StatusCode::FOUND,
                 [(
                     header::LOCATION,
                     format!(
-                        "{}/auth/{}",
+                        "{}/auth/{}/incorrect",
                         args.public_path_as_str(),
-                        pastas[index].id_as_animals(&args.hash_ids)
+                        pasta.id_as_animals(&args.hash_ids)
                     ),
                 )],
                 "".to_string(),
             ));
         }
-
-        // increment read count
-        pastas[index].read_count += 1;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]), &args);
-
-        let original_content = pastas[index].content.to_owned();
-
-        // decrypt content temporarily
-        if password != *"" {
-            let res = decrypt(&original_content, &password);
-            if let Ok(rs) = res {
-                pastas[index].content.replace_range(.., rs.as_str());
-            } else {
-                return Ok((
-                    StatusCode::FOUND,
-                    [(
-                        header::LOCATION,
-                        format!(
-                            "{}/auth/{}/incorrect",
-                            args.public_path_as_str(),
-                            pastas[index].id_as_animals(&args.hash_ids)
-                        ),
-                    )],
-                    "".to_string(),
-                ));
-            }
-        }
-
-        // get current unix time in seconds
-        let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(n) => n.as_secs(),
-            Err(_) => {
-                log::error!("SystemTime before UNIX EPOCH!");
-                0
-            }
-        } as i64;
-
-        // update last read time
-        pastas[index].last_read = timenow;
-
-        // save the updated read count
-        update(Some(&pastas), Some(&pastas[index]), &args);
-
-        // send raw content of pasta
-
-        let mut headers = HeaderMap::new();
-        headers.insert("content-type", "text/html; charset=utf-8".parse()?);
-        let response = (
-            StatusCode::NOT_FOUND,
-            [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            pastas[index].content.to_owned(),
-        );
-
-        if pastas[index].content != original_content {
-            pastas[index].content = original_content;
-        }
-        return Ok(response);
     }
 
-    // otherwise send pasta not found error as raw text
-    Ok((
+    // get current unix time in seconds
+    let timenow: i64 = match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => {
+            log::error!("SystemTime before UNIX EPOCH!");
+            0
+        }
+    } as i64;
+
+    // update last read time
+    pasta.last_read = timenow;
+
+    // save the updated read count
+    db.update_pasta(&id, pasta.clone().into())?;
+
+    // send raw content of pasta
+
+    let mut headers = HeaderMap::new();
+    headers.insert("content-type", "text/html; charset=utf-8".parse()?);
+    let response = (
         StatusCode::NOT_FOUND,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        "Upload not found! :-(".to_string(),
-    ))
+        pasta.content.to_owned(),
+    );
+
+    if pasta.content != original_content {
+        pasta.content = original_content;
+    }
+    Ok(response)
 }
 
 fn decrypt(text_str: &str, key_str: &str) -> Result<String, magic_crypt::MagicCryptError> {

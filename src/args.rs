@@ -1,4 +1,5 @@
 use clap::Parser;
+use db::database_args::DatabaseArgs;
 use serde::Serialize;
 use std::convert::Infallible;
 use std::fmt;
@@ -55,6 +56,9 @@ pub struct Args {
 
     #[clap(long, env = "MICROBIN_JSON_DB")]
     pub json_db: bool,
+
+    #[clap(long, env = "MICROBIN_IN_MEMORY_DB")]
+    pub in_memory_db: bool,
 
     #[clap(long, env = "MICROBIN_PUBLIC_PATH")]
     pub public_path: Option<PublicUrl>,
@@ -150,6 +154,22 @@ pub struct Args {
     pub max_file_size_unencrypted_mb: usize,
 }
 
+impl From<Args> for DatabaseArgs {
+    fn from(val: Args) -> Self {
+        if val.json_db {
+            DatabaseArgs::JSONDatabaseProperties(db::database_args::JSONDatabaseProperties {
+                file_path: val.data_dir.clone(),
+                file_name: String::from("pasta.json"),
+            })
+        } else {
+            DatabaseArgs::SqliteProperties(db::database_args::SqliteProperties {
+                db_path: format!("{}/database.sqlite", val.data_dir),
+                in_memory: false,
+            })
+        }
+    }
+}
+
 impl Args {
     pub fn public_path_as_str(&self) -> String {
         if let Some(public_path) = self.public_path.as_ref() {
@@ -214,6 +234,7 @@ impl Args {
             max_file_size_encrypted_mb: self.max_file_size_encrypted_mb,
             max_file_size_unencrypted_mb: self.max_file_size_unencrypted_mb,
             disable_update_checking: self.disable_update_checking,
+            in_memory_db: self.in_memory_db,
         }
     }
 }

@@ -1,41 +1,40 @@
-use std::{
-    fs,
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
-
 use crate::error_handling::AppError;
 use crate::{args::Args, pasta::Pasta, util::misc::clean_up_expired_pastes};
+use db::database::DatabaseType;
+use std::{fs, sync::Arc, thread, time::Duration};
 
-pub fn start_cleanup_thread(app_state: Arc<Mutex<Vec<Pasta>>>, args: Args) {
+pub fn start_cleanup_thread(db: &DatabaseType, args: Args) {
+    let db = Arc::clone(db);
     thread::spawn(move || {
         log::info!("Started background cleanup thread - running immediately and then every hour");
 
         loop {
-            match app_state.lock() {
-                Ok(mut pastas) => {
-                    let count_before = pastas.len();
-                    clean_up_expired_pastes(&mut pastas, &args);
-                    let count_after = pastas.len();
-                    let removed_count = count_before - count_after;
-
-                    if removed_count > 0 {
-                        log::info!(
-                            "Background cleanup: removed {} expired paste(s)",
-                            removed_count
-                        );
-                    } else {
-                        log::debug!("Background cleanup: no expired pastes found");
-                    }
-
-                    if let Err(e) = cleanup_orphaned_files(&pastas, &args) {
-                        log::error!("Failed to cleanup paste: {}", e);
-                    }
-                }
+            let pastas = match db.find_all_pastas() {
+                Ok(pastas) => pastas.iter().map(Pasta::from).collect::<Vec<Pasta>>(),
                 Err(e) => {
-                    log::error!("Background cleanup failed to acquire pasta lock: {}", e);
+                    log::error!("Failed to fetch pastas for cleanup: {}", e);
+                    thread::sleep(Duration::from_secs(60 * 60)); // 1 hour
+                    continue;
                 }
+            };
+            let count_before = pastas.len();
+            clean_up_expired_pastes(&args, &db).unwrap_or_else(|e| {
+                log::error!("Failed to clean up expired pastas: {}", e);
+            });
+            let count_after = pastas.len();
+            let removed_count = count_before - count_after;
+
+            if removed_count > 0 {
+                log::info!(
+                    "Background cleanup: removed {} expired paste(s)",
+                    removed_count
+                );
+            } else {
+                log::debug!("Background cleanup: no expired pastes found");
+            }
+
+            if let Err(e) = cleanup_orphaned_files(&pastas, &args) {
+                log::error!("Failed to cleanup paste: {}", e);
             }
 
             thread::sleep(Duration::from_secs(60 * 60)); // 1 hour
