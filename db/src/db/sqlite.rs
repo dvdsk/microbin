@@ -53,7 +53,7 @@ pub static CREATE_TABLE_QUERY: &str = r#"
             hide_read_count INTEGER NOT NULL
         );"#;
 
-pub static SELECT_ALL_QUERY: &str = r#"SELECT * FROM pasta"#;
+pub static SELECT_ALL_QUERY: &str = r#"SELECT * FROM pasta ORDER BY created ASC"#;
 
 impl SqLite {
     pub fn new(args: SqliteProperties) -> Result<Self, rusqlite::Error> {
@@ -105,7 +105,7 @@ impl Database for SqLite {
     fn find_all_pastas(&self) -> Result<Vec<PastaEntity>> {
         let pool = self.pool.get().expect("should get connection from pool");
 
-        let mut stmt = pool.prepare("SELECT * FROM pasta ORDER BY created ASC")?;
+        let mut stmt = pool.prepare(SELECT_ALL_QUERY)?;
         let pasta_iter = stmt
             .query_map([], |row| Ok(PastaEntity::from(row)))
             .expect("Failed to query pastas");
@@ -192,11 +192,11 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-        .expect(
-            "Failed to \
+            .expect(
+                "Failed to \
         create \
         SQLite database",
-        );
+            );
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -214,7 +214,7 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-        .expect("Failed to create SQLite database");
+            .expect("Failed to create SQLite database");
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 
@@ -245,7 +245,7 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-        .expect("Failed to create SQLite database");
+            .expect("Failed to create SQLite database");
 
         let mut pasta1 = super::super::super::test_utils::test_util::create_random_pasta_entity();
         pasta1.private = true;
@@ -277,7 +277,7 @@ mod tests {
         let db = SqLite::new(
             super::super::super::test_utils::test_util::create_test_sqlite_properties(),
         )
-        .expect("Failed to create SQLite database");
+            .expect("Failed to create SQLite database");
 
         let pasta = super::super::super::test_utils::test_util::create_random_pasta_entity();
 

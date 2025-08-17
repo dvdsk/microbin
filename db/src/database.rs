@@ -1,6 +1,6 @@
 use crate::database_args::DatabaseArgs;
-use crate::db::json::db::JsonDatabase;
-use crate::db::sqlite::db::SqLite;
+use crate::db::json::JsonDatabase;
+use crate::db::sqlite::SqLite;
 use crate::entities::pasta::PastaEntity;
 use color_eyre::eyre;
 use eyre::Result;
