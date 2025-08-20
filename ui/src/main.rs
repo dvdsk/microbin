@@ -12,7 +12,8 @@ mod components;
 use crate::components::footer::ShowableFooter;
 use crate::components::links::Links;
 use crate::components::navbar::Navbar;
-use crate::components::navbar::Navbar;
+use crate::components::create_pasta::CreatePasta;
+use crate::components::guide::ShowableGuide;
 /// The Route enum is used to define the structure of internal routes in our app. All route enums need to derive
 /// the [`Routable`] trait, which provides the necessary methods for the router to work.
 /// 
@@ -32,6 +33,8 @@ enum Route {
         },
         #[route("/createPasta")]
         CreatePasta {},
+        #[route("/guide")]
+        ShowableGuide {},
 }
 
 // We can import assets in dioxus with the `asset!` macro. This macro takes a path to an asset relative to the crate root.

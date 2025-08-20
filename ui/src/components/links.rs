@@ -22,8 +22,13 @@ pub fn Links() -> Element {
             "Navbar"
         },
         Link {
-                to: Route::Home {}
-        }
+                to: Route::CreatePasta {},
+                "Create pasta"
+        },
+            Link {
+                to: Route::ShowableGuide {},
+                "Guide"
+            }
         }
     }
 }

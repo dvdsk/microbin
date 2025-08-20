@@ -1691,5 +1691,9 @@ body > footer {
 /* Custom styles for specific elements */
 .navbar {
     display: flex;
-    gap: 10px;
+    gap: 20px;
+}
+
+.navbar a {
+    font-size: 20px;
 }
