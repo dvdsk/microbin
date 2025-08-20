@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 dioxus = { version = "*", features = ["router"] }
 dioxus-ssr = { version = "*" }
+models = { path = "../models" }
 
 [features]
 default = ["web"]

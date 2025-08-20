@@ -4,3 +4,4 @@ mod text_input;
 pub mod navbar;
 pub mod create_pasta;
 pub mod guide;
+mod list;

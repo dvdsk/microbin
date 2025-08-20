@@ -13,7 +13,6 @@ use crate::endpoints::pasta::pasta_routes;
 use crate::endpoints::qr::qr_router;
 use crate::endpoints::remove::remove_router;
 use crate::endpoints::static_resources;
-use crate::pasta::Pasta;
 use crate::static_resources::static_resource_router;
 use crate::util::auth::auth_validator;
 use crate::util::cleanup::start_cleanup_thread;
@@ -31,7 +30,6 @@ use tower_http::normalize_path::NormalizePathLayer;
 
 pub mod args;
 mod error_handling;
-pub mod pasta;
 
 pub mod util {
     pub mod animalnumbers;

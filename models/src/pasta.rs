@@ -52,7 +52,7 @@ impl PastaFile {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Pasta {
     pub id: u64,
     pub content: String,
