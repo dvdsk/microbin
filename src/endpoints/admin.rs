@@ -5,11 +5,11 @@ use axum::extract::{Multipart, State};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use futures::TryStreamExt;
-use reqwest::{StatusCode, header};
 use models::args::Args;
 use models::error_handling::AppError;
 use models::pasta::Pasta;
-use models::util::version::{fetch_latest_version, Version, CURRENT_VERSION};
+use models::util::version::{CURRENT_VERSION, Version, fetch_latest_version};
+use reqwest::{StatusCode, header};
 
 #[derive(Template)]
 #[template(path = "admin.html")]

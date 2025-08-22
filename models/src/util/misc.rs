@@ -1,4 +1,6 @@
+use crate::args::Args;
 use crate::error_handling::AppError;
+use crate::pasta::Pasta;
 use db::database::DatabaseType;
 use linkify::{LinkFinder, LinkKind};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
@@ -7,8 +9,6 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::pasta::Pasta;
-use crate::args::Args;
 
 pub fn clean_up_expired_pastes(args: &Args, db: &DatabaseType) -> Result<(), AppError> {
     // get current time - this will be needed to check which pastas have expired

@@ -1,9 +1,9 @@
-pub mod footer;
-pub mod links;
-mod text_input;
-pub mod navbar;
 pub mod create_pasta;
-pub mod guide;
-mod list;
 mod error;
+pub mod footer;
+pub mod guide;
+pub mod links;
+mod list;
 mod list_table;
+pub mod navbar;
+mod text_input;

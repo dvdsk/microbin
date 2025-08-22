@@ -6,11 +6,9 @@ pub struct TextInputProps {
     pub id: String,
     pub placeholder: String,
     pub value: String,
-    pub oninput: fn(String)-> (),
+    pub oninput: fn(String) -> (),
     pub disabled: bool,
 }
-
-
 
 pub fn TextInput(props: TextInputProps) -> Element {
     let TextInputProps {
@@ -20,8 +18,6 @@ pub fn TextInput(props: TextInputProps) -> Element {
         oninput,
         disabled,
     } = props;
-
-
 
     rsx! {
         input {

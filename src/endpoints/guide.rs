@@ -13,7 +13,8 @@ pub async fn guide(
     let guide = dioxus_ssr::render_element(Guide(args.into()));
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
-        .body(guide)?.into_response())
+        .body(guide)?
+        .into_response())
 }
 
 pub fn guide_router() -> Router<AppState> {

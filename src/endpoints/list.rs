@@ -2,12 +2,12 @@ use crate::AppState;
 use askama::Template;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use reqwest::{StatusCode, header};
 use microbin_frontend::components::guide::Guide;
 use microbin_frontend::components::list::{List, ListProps};
 use models::args::Args;
 use models::error_handling::AppError;
 use models::pasta::Pasta;
+use reqwest::{StatusCode, header};
 
 pub async fn list(
     State(AppState { args, db }): State<AppState>,

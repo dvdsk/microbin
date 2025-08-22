@@ -1,8 +1,8 @@
-use dioxus::prelude::*;
-use crate::components::navbar::NavbarProps;
-use models::args::{Args, PublicUrl};
-use crate::components::navbar::Navbar;
 use crate::components::footer::{Footer, FooterProps};
+use crate::components::navbar::Navbar;
+use crate::components::navbar::NavbarProps;
+use dioxus::prelude::*;
+use models::args::{Args, PublicUrl};
 
 #[derive(PartialEq, Props, Clone)]
 pub struct ErrorProps {
@@ -28,9 +28,8 @@ impl From<Args> for ErrorProps {
     }
 }
 
-
 pub fn Error(props: ErrorProps) -> Element {
-    rsx!{
+    rsx! {
                   head{
                 link { rel: "icon", href: "/assets/favicon.ico" },
                 link { rel: "stylesheet", href: "/assets/styling/water.css" }

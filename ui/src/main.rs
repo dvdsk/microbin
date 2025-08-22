@@ -2,18 +2,17 @@
 // need dioxus
 use dioxus::prelude::*;
 
-
 use views::{Blog, Home};
 
+pub mod components;
 /// Define a components module that contains all shared components for our app.
 /// Define a views module that contains the UI for all Layouts and Routes for our app.
 mod views;
-pub mod components;
+use crate::components::create_pasta::CreatePasta;
 use crate::components::footer::ShowableFooter;
+use crate::components::guide::ShowableGuide;
 use crate::components::links::Links;
 use crate::components::navbar::Navbar;
-use crate::components::create_pasta::CreatePasta;
-use crate::components::guide::ShowableGuide;
 /// The Route enum is used to define the structure of internal routes in our app. All route enums need to derive
 /// the [`Routable`] trait, which provides the necessary methods for the router to work.
 /// 

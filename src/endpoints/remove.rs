@@ -1,19 +1,19 @@
 use crate::AppState;
+use crate::endpoints::auth;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use reqwest::header;
-use std::fs;
 use microbin_frontend::components::error::Error;
 use models::error_handling::AppError;
 use models::pasta::{Pasta, PastaFile};
 use models::util::animalnumbers::to_u64;
 use models::util::hashids::to_u64_hash_ids;
 use models::util::misc::decrypt;
-use crate::endpoints::auth;
+use reqwest::header;
+use std::fs;
 
 pub async fn remove(
     State(AppState { args, db }): State<AppState>,
@@ -34,7 +34,8 @@ pub async fn remove(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;
@@ -110,7 +111,8 @@ pub async fn post_remove(
         return Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            dioxus_ssr::render_element(Error(args.into())))
+            dioxus_ssr::render_element(Error(args.into())),
+        )
             .into_response());
     }
 
@@ -125,7 +127,8 @@ pub async fn post_remove(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;

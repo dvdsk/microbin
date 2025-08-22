@@ -6,10 +6,6 @@ use microbin_frontend::components::error::{Error, ErrorProps};
 use microbin_frontend::components::footer::FooterProps;
 use models::error_handling::AppError;
 
-
-
-
-
 pub async fn not_found(
     State(AppState { args, .. }): State<AppState>,
 ) -> Result<Response, AppError> {

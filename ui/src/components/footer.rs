@@ -1,7 +1,7 @@
+use crate::components::list::ListProps;
 use dioxus::dioxus_core::Element;
 use dioxus::html::completions::CompleteWithBraces::a;
 use dioxus::prelude::*;
-use crate::components::list::ListProps;
 use models::args::Args;
 
 #[derive(PartialEq, Props, Clone)]
@@ -9,7 +9,6 @@ pub struct FooterProps {
     pub hide_footer: bool,
     pub footer_text: Option<String>,
 }
-
 
 impl From<ListProps> for FooterProps {
     fn from(list_props: ListProps) -> Self {
@@ -28,7 +27,6 @@ impl From<Args> for FooterProps {
         }
     }
 }
-
 
 pub fn Footer(hide_footer: FooterProps) -> Element {
     if !hide_footer.hide_footer {
@@ -73,7 +71,6 @@ pub fn Footer(hide_footer: FooterProps) -> Element {
         rsx! {}
     }
 }
-
 
 pub fn ShowableFooter() -> Element {
     rsx! {

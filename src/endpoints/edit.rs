@@ -1,4 +1,4 @@
-use crate::{AppState};
+use crate::AppState;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -79,7 +79,8 @@ pub async fn get_edit(
         None => Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            dioxus_ssr::render_element(Error(args.into())))
+            dioxus_ssr::render_element(Error(args.into())),
+        )
             .into_response()),
     }
 }
@@ -102,7 +103,8 @@ pub async fn get_edit_with_status(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;
@@ -164,7 +166,8 @@ pub async fn post_edit_private(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;
@@ -228,7 +231,8 @@ pub async fn post_edit_private(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        dioxus_ssr::render_element(Error(args.into())))
+        dioxus_ssr::render_element(Error(args.into())),
+    )
         .into_response())
 }
 
@@ -353,7 +357,8 @@ pub async fn post_edit(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;
@@ -436,7 +441,8 @@ pub async fn post_edit(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        dioxus_ssr::render_element(Error(args.into())))
+        dioxus_ssr::render_element(Error(args.into())),
+    )
         .into_response())
 }
 

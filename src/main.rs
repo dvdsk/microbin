@@ -1,6 +1,7 @@
 extern crate core;
 
 use crate::endpoints::admin::admin_router;
+use crate::endpoints::auth::auth_validator;
 use crate::endpoints::auth_admin::auth_admin_router;
 use crate::endpoints::create::create_routes;
 use crate::endpoints::edit::edit_router;
@@ -19,19 +20,18 @@ use axum::{Router, middleware};
 use chrono::Local;
 use clap::Parser;
 use env_logger::{Builder, Env};
+use models::args::Args;
+use models::util::cleanup::start_cleanup_thread;
+use models::util::telemetry::start_telemetry_thread;
 use std::io::Write;
 use std::sync::Arc;
 use std::{env, fs};
 use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::services::ServeDir;
-use models::args::Args;
-use models::util::cleanup::start_cleanup_thread;
-use models::util::telemetry::start_telemetry_thread;
-use crate::endpoints::auth::auth_validator;
 
 pub mod endpoints {
-    pub mod auth;
     pub mod admin;
+    pub mod auth;
     pub mod auth_admin;
     pub mod auth_upload;
     pub mod create;
@@ -101,7 +101,6 @@ async fn main() -> std::io::Result<()> {
     start_cleanup_thread(&app_state.db, args.clone());
 
     let static_files = ServeDir::new("./ui/assets");
-
 
     let mut router = Router::new()
         .merge(create_routes())

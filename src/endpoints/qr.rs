@@ -5,7 +5,6 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::get;
-use reqwest::header;
 use microbin_frontend::components::error::Error;
 use models::args::Args;
 use models::error_handling::AppError;
@@ -13,6 +12,7 @@ use models::pasta::Pasta;
 use models::util::animalnumbers::to_u64;
 use models::util::hashids::to_u64_hash_ids;
 use models::util::misc;
+use reqwest::header;
 
 #[derive(Template)]
 #[template(path = "qr.html", escape = "none")]
@@ -41,7 +41,8 @@ pub async fn getqr(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;

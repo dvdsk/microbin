@@ -1,7 +1,6 @@
 use crate::Route;
 use dioxus::prelude::*;
 
-
 /// The Navbar component that will be rendered on all pages of our app since every page is under the layout.
 ///
 ///

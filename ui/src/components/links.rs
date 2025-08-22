@@ -1,8 +1,7 @@
-use dioxus::prelude::*;
 use crate::Route;
+use dioxus::prelude::*;
 
 static CSS: Asset = asset!("/assets/styling/links.css");
-
 
 pub fn Links() -> Element {
     rsx! {

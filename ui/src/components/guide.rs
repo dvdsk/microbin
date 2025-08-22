@@ -13,7 +13,6 @@ pub struct GuideProps {
     pub no_listing: bool,
 }
 
-
 impl From<Args> for GuideProps {
     fn from(args: Args) -> Self {
         GuideProps {

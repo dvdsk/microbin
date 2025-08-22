@@ -4,8 +4,8 @@ use axum::middleware::Next;
 use axum::response::Response;
 use base64::Engine;
 use base64::engine::general_purpose;
-use reqwest::StatusCode;
 use models::error_handling::AppError;
+use reqwest::StatusCode;
 
 pub async fn auth_validator(
     State(AppState { args, .. }): State<AppState>,

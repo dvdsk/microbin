@@ -3,9 +3,9 @@ use axum::Router;
 use axum::extract::Path;
 use axum::http::Response;
 use axum::response::IntoResponse;
+use models::error_handling::AppError;
 use reqwest::StatusCode;
 use rust_embed::RustEmbed;
-use models::error_handling::AppError;
 
 #[derive(RustEmbed)]
 #[folder = "templates/assets/"]

@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::endpoints::auth;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -6,14 +7,13 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
-use std::time::{SystemTime, UNIX_EPOCH};
 use microbin_frontend::components::error::Error;
 use models::args::Args;
 use models::error_handling::AppError;
 use models::pasta::Pasta;
 use models::util::animalnumbers::to_u64;
 use models::util::hashids::to_u64_hash_ids;
-use crate::endpoints::auth;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Template)]
 #[template(path = "upload.html", escape = "none")]
@@ -44,7 +44,8 @@ fn pastaresponse(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;
@@ -61,7 +62,8 @@ fn pastaresponse(
                 ),
             )],
             "".to_string(),
-        ).into_response());
+        )
+            .into_response());
     }
 
     // increment read count
@@ -88,7 +90,8 @@ fn pastaresponse(
                     ),
                 )],
                 "".to_string(),
-            ).into_response());
+            )
+                .into_response());
         }
     }
 
@@ -172,7 +175,8 @@ fn urlresponse(AppState { args, db }: AppState, id: String) -> Result<impl IntoR
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
+                dioxus_ssr::render_element(Error(args.into())),
+            )
                 .into_response());
         }
     }?;
@@ -209,7 +213,8 @@ fn urlresponse(AppState { args, db }: AppState, id: String) -> Result<impl IntoR
         Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            dioxus_ssr::render_element(Error(args.into())))
+            dioxus_ssr::render_element(Error(args.into())),
+        )
             .into_response())
     }
 }
@@ -248,8 +253,9 @@ pub async fn getrawpasta(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
-                .into_response())
+                dioxus_ssr::render_element(Error(args.into())),
+            )
+                .into_response());
         }
     }?;
     if pasta.encrypt_server {
@@ -264,7 +270,8 @@ pub async fn getrawpasta(
                 ),
             )],
             "".to_string(),
-        ).into_response());
+        )
+            .into_response());
     }
 
     // increment read count
@@ -324,8 +331,9 @@ pub async fn postrawpasta(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                dioxus_ssr::render_element(Error(args.into())))
-                .into_response())
+                dioxus_ssr::render_element(Error(args.into())),
+            )
+                .into_response());
         }
     }?;
 
@@ -351,7 +359,8 @@ pub async fn postrawpasta(
                 ),
             )],
             "".to_string(),
-        ).into_response());
+        )
+            .into_response());
     }
 
     // increment read count
@@ -379,7 +388,8 @@ pub async fn postrawpasta(
                     ),
                 )],
                 "".to_string(),
-            ).into_response());
+            )
+                .into_response());
         }
     }
 

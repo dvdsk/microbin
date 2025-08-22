@@ -1,7 +1,7 @@
-use dioxus::prelude::*;
 use crate::components::error::ErrorProps;
-use models::args::Args;
 use crate::components::list::ListProps;
+use dioxus::prelude::*;
+use models::args::Args;
 
 #[derive(PartialEq, Props, Clone)]
 pub struct NavbarProps {
@@ -20,7 +20,6 @@ impl From<ListProps> for NavbarProps {
     }
 }
 
-
 impl From<ErrorProps> for NavbarProps {
     fn from(error_props: ErrorProps) -> Self {
         NavbarProps {
@@ -33,36 +32,36 @@ impl From<ErrorProps> for NavbarProps {
 
 pub fn Navbar(props: NavbarProps) -> Element {
     rsx! {
-        nav {
-            class: "navbar",
-            {if !props.hide_logo {
-                rsx!{img
-            {
-                width: 100,
-                src: "/assets/logo.png",
-                alt: "Logo",
-                class: "logo",
-            }}} else {
-                rsx!{}
-            }},
-            a {
-                href: "/",
-                "New"
-            },
-            {if !props.no_listing {
-                rsx!{
-                    a
-             {
-                href: "/list",
-                "List"
-            }}} else {
-                rsx!{}
-                }
-            },
-            a {
-                href: "/guide",
-                "Guide"
+    nav {
+        class: "navbar",
+        {if !props.hide_logo {
+            rsx!{img
+        {
+            width: 100,
+            src: "/assets/logo.png",
+            alt: "Logo",
+            class: "logo",
+        }}} else {
+            rsx!{}
+        }},
+        a {
+            href: "/",
+            "New"
+        },
+        {if !props.no_listing {
+            rsx!{
+                a
+         {
+            href: "/list",
+            "List"
+        }}} else {
+            rsx!{}
             }
+        },
+        a {
+            href: "/guide",
+            "Guide"
         }
-        }
+    }
+    }
 }
