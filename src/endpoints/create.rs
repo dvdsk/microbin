@@ -1,10 +1,4 @@
-use crate::args::Args;
-use crate::error_handling::AppError;
-use crate::pasta::PastaFile;
-use crate::util::animalnumbers::to_animal_names;
-use crate::util::hashids::to_hashids;
-use crate::util::misc::{encrypt, encrypt_file, is_valid_url};
-use crate::{AppState, Pasta};
+use crate::{AppState};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -17,6 +11,12 @@ use log::warn;
 use reqwest::StatusCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::io::AsyncWriteExt;
+use models::args::Args;
+use models::error_handling::AppError;
+use models::pasta::{Pasta, PastaFile};
+use models::util::animalnumbers::{to_animal_names};
+use models::util::hashids::{to_hashids};
+use models::util::misc::{encrypt, encrypt_file, is_valid_url};
 
 #[derive(Template)]
 #[template(path = "index.html")]

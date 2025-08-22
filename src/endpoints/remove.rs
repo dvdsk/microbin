@@ -1,11 +1,4 @@
 use crate::AppState;
-use crate::endpoints::errors::ErrorTemplate;
-use crate::error_handling::AppError;
-use crate::pasta::{Pasta, PastaFile};
-use crate::util::animalnumbers::to_u64;
-use crate::util::auth;
-use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::decrypt;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -14,13 +7,20 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use reqwest::header;
 use std::fs;
+use microbin_frontend::components::error::Error;
+use models::error_handling::AppError;
+use models::pasta::{Pasta, PastaFile};
+use models::util::animalnumbers::to_u64;
+use models::util::hashids::to_u64_hash_ids;
+use models::util::misc::decrypt;
+use crate::endpoints::auth;
 
 pub async fn remove(
     State(AppState { args, db }): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -34,8 +34,7 @@ pub async fn remove(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            )
+                dioxus_ssr::render_element(Error(args.into())))
                 .into_response());
         }
     }?;
@@ -101,7 +100,7 @@ pub async fn post_remove(
     payload: Multipart,
 ) -> Result<axum::response::Response, AppError> {
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -111,8 +110,7 @@ pub async fn post_remove(
         return Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            ErrorTemplate { args: &args }.render()?,
-        )
+            dioxus_ssr::render_element(Error(args.into())))
             .into_response());
     }
 
@@ -127,8 +125,7 @@ pub async fn post_remove(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            )
+                dioxus_ssr::render_element(Error(args.into())))
                 .into_response());
         }
     }?;

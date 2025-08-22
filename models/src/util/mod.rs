@@ -1,7 +1,5 @@
 pub mod animalnumbers;
-pub mod auth;
 pub mod cleanup;
-pub mod db;
 pub mod hashids;
 pub mod http_client;
 pub mod misc;

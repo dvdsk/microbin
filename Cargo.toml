@@ -42,6 +42,7 @@ reqwest = { version = "0.12", default-features = false, features = ["charset",
 rust-embed = "8.7.2"
 db = {path =  "./db"}
 models = { path = "./models" }
+microbin_frontend = { path = "./ui" }
 color-eyre = "0.6.5"
 
 # The rustls-rustcrypto version must support the rustls version, and the
@@ -56,10 +57,11 @@ webpki-roots = { version = "1.0.2", optional = true }
 tower = "0.5.2"
 bytes = "1.8.0"
 base64 = "0.22.1"
-dioxus = { version = "0.6.3", features = ["router"] }
+dioxus = { version = "0.6.3", features = ["web"] }
+dioxus-ssr = "0.6.2"
 
 [features]
-default = ["__rustcrypto-tls", "__syntect-fast"]
+default = ["__rustcrypto-tls", "__syntect-fast", "__rustcrypto-tls"]
 no-c-deps = ["__rustcrypto-tls", "__syntect-rust"]
 
 __rustcrypto-tls = ["reqwest/rustls-tls-manual-roots-no-provider", "dep:rustls", "dep:rustls-rustcrypto", "webpki-roots"]

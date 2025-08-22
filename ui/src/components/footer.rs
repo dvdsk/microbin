@@ -1,7 +1,8 @@
 use dioxus::dioxus_core::Element;
 use dioxus::html::completions::CompleteWithBraces::a;
 use dioxus::prelude::*;
-static CSS: Asset = asset!("/assets/styling/footer.css");
+use crate::components::list::ListProps;
+use models::args::Args;
 
 #[derive(PartialEq, Props, Clone)]
 pub struct FooterProps {
@@ -10,10 +11,28 @@ pub struct FooterProps {
 }
 
 
+impl From<ListProps> for FooterProps {
+    fn from(list_props: ListProps) -> Self {
+        FooterProps {
+            hide_footer: list_props.hide_logo,
+            footer_text: list_props.footer_text,
+        }
+    }
+}
+
+impl From<Args> for FooterProps {
+    fn from(args: Args) -> Self {
+        FooterProps {
+            hide_footer: args.hide_footer,
+            footer_text: args.footer_text,
+        }
+    }
+}
+
+
 pub fn Footer(hide_footer: FooterProps) -> Element {
     if !hide_footer.hide_footer {
         rsx! {
-            document::Link { rel: "stylesheet", href: CSS }
             footer {
                 id: "footer",
                 {hide_footer.footer_text.map(|e|{
@@ -24,9 +43,9 @@ pub fn Footer(hide_footer: FooterProps) -> Element {
                      rsx! {
                         div {
                             class: "footer",
-                                                    Link {
-                            to: "https://microbin.eu",
-                            new_tab: true,
+                                                    a {
+                            href: "https://microbin.eu",
+                            target: "_blank",
                             rel: "noopener noreferrer",
                             class: "footer-link",
                             "MicroBin "

@@ -154,6 +154,7 @@ pub struct Args {
     pub max_file_size_unencrypted_mb: usize,
 }
 
+
 impl From<Args> for DatabaseArgs {
     fn from(val: Args) -> Self {
         if val.json_db {
@@ -242,9 +243,28 @@ impl Args {
 #[derive(Debug, Clone, Serialize)]
 pub struct PublicUrl(pub String);
 
+
+impl Default for PublicUrl {
+    fn default() -> Self {
+        PublicUrl(String::from("/"))
+    }
+}
+
 impl fmt::Display for PublicUrl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for PublicUrl {
+    fn from(value: String) -> Self {
+        PublicUrl(value)
+    }
+}
+
+impl From<PublicUrl> for String {
+    fn from(value: PublicUrl) -> Self {
+        value.0
     }
 }
 

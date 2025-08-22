@@ -8,7 +8,7 @@ use views::{Blog, Home};
 /// Define a components module that contains all shared components for our app.
 /// Define a views module that contains the UI for all Layouts and Routes for our app.
 mod views;
-mod components;
+pub mod components;
 use crate::components::footer::ShowableFooter;
 use crate::components::links::Links;
 use crate::components::navbar::Navbar;
@@ -60,8 +60,7 @@ fn App() -> Element {
     rsx! {
         // In addition to element and text (which we will see later), rsx can contain other components. In this case,
         // we are using the `document::Link` component to add a link to our favicon and main CSS file into the head of our app.
-        document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: WATER_CSS }
+
 
         // The router component renders the route enum we defined above. It will handle synchronization of the URL and render
         // the layouts and components for the active route.

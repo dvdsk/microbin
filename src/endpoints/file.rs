@@ -1,9 +1,4 @@
 use crate::AppState;
-use crate::error_handling::AppError;
-use crate::pasta::{Pasta, PastaFile};
-use crate::util::auth;
-use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::{animalnumbers::to_u64, misc::decrypt_file};
 use axum::extract::{Multipart, Path, State};
 use axum::response::{IntoResponse, Response};
 use db::entities::pasta::PastaEntity;
@@ -12,6 +7,12 @@ use reqwest::header;
 use std::fs::File;
 use std::path::PathBuf;
 use tokio_util::io::ReaderStream;
+use models::error_handling::AppError;
+use models::pasta::{Pasta, PastaFile};
+use models::util::animalnumbers::to_u64;
+use models::util::hashids::to_u64_hash_ids;
+use models::util::misc::decrypt_file;
+use crate::endpoints::auth;
 
 pub async fn post_secure_file(
     State(AppState { args, db }): State<AppState>,
@@ -23,7 +24,7 @@ pub async fn post_secure_file(
     let password = auth::password_from_multipart(payload).await?;
 
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -76,7 +77,7 @@ pub async fn get_file(
     State(AppState { args, db }): State<AppState>,
 ) -> Result<Response, AppError> {
     let id_intern = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };

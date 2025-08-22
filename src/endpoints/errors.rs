@@ -1,22 +1,23 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::error_handling::AppError;
 use askama::Template;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
+use microbin_frontend::components::error::{Error, ErrorProps};
+use microbin_frontend::components::footer::FooterProps;
+use models::error_handling::AppError;
 
-#[derive(Template)]
-#[template(path = "error.html")]
-pub struct ErrorTemplate<'a> {
-    pub args: &'a Args,
-}
+
+
+
 
 pub async fn not_found(
     State(AppState { args, .. }): State<AppState>,
 ) -> Result<Response, AppError> {
+    let error = dioxus_ssr::render_element(Error(args.into()));
+
     let resp = Response::builder()
         .header("content-type", "text/html; charset=utf-8")
-        .body(ErrorTemplate { args: &args }.render()?)
+        .body(error)
         .map_err(AppError::from)?;
     Ok(resp.into_response())
 }

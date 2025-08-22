@@ -1,11 +1,4 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::endpoints::errors::ErrorTemplate;
-use crate::error_handling::AppError;
-use crate::pasta::Pasta;
-use crate::util::animalnumbers::to_u64;
-use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{self};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Path, State};
@@ -13,6 +6,13 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use reqwest::header;
+use microbin_frontend::components::error::Error;
+use models::args::Args;
+use models::error_handling::AppError;
+use models::pasta::Pasta;
+use models::util::animalnumbers::to_u64;
+use models::util::hashids::to_u64_hash_ids;
+use models::util::misc;
 
 #[derive(Template)]
 #[template(path = "qr.html", escape = "none")]
@@ -27,7 +27,7 @@ pub async fn getqr(
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
     let u64_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -41,8 +41,7 @@ pub async fn getqr(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            )
+                dioxus_ssr::render_element(Error(args.into())))
                 .into_response());
         }
     }?;

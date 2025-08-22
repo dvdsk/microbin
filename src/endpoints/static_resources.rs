@@ -1,11 +1,11 @@
 use crate::AppState;
-use crate::error_handling::AppError;
 use axum::Router;
 use axum::extract::Path;
 use axum::http::Response;
 use axum::response::IntoResponse;
 use reqwest::StatusCode;
 use rust_embed::RustEmbed;
+use models::error_handling::AppError;
 
 #[derive(RustEmbed)]
 #[folder = "templates/assets/"]

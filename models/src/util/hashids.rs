@@ -12,7 +12,7 @@ pub fn to_hashids(number: u64) -> String {
     HARSH.encode(&[number])
 }
 
-pub fn to_u64(hash_id: &str) -> Result<u64, &str> {
+pub fn to_u64_hash_ids(hash_id: &str) -> Result<u64, &str> {
     let ids = HARSH
         .decode(hash_id)
         .map_err(|_e| "Failed to decode hash ID")?;

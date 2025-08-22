@@ -7,9 +7,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = { version = "*", features = ["router"] }
+dioxus = { version = "*", features = ["router", "web"] }
 dioxus-ssr = { version = "*" }
 models = { path = "../models" }
+
+
+[lib]
+name = "microbin_frontend"
+path = "src/lib.rs"
 
 [features]
 default = ["web"]

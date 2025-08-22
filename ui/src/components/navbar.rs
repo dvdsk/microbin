@@ -1,30 +1,68 @@
 use dioxus::prelude::*;
+use crate::components::error::ErrorProps;
+use models::args::Args;
+use crate::components::list::ListProps;
 
-const ASSET: Asset = asset!("/assets/logo.png");
+#[derive(PartialEq, Props, Clone)]
+pub struct NavbarProps {
+    hide_logo: bool,
+    title: Option<String>,
+    no_listing: bool,
+}
+
+impl From<ListProps> for NavbarProps {
+    fn from(list_props: ListProps) -> Self {
+        NavbarProps {
+            hide_logo: list_props.hide_logo,
+            title: list_props.title,
+            no_listing: list_props.no_listing,
+        }
+    }
+}
 
 
-pub fn Navbar() -> Element {
+impl From<ErrorProps> for NavbarProps {
+    fn from(error_props: ErrorProps) -> Self {
+        NavbarProps {
+            hide_logo: error_props.hide_logo,
+            title: error_props.title,
+            no_listing: error_props.no_listing,
+        }
+    }
+}
+
+pub fn Navbar(props: NavbarProps) -> Element {
     rsx! {
         nav {
             class: "navbar",
-            img {
+            {if !props.hide_logo {
+                rsx!{img
+            {
                 width: 100,
-                src: ASSET,
+                src: "/assets/logo.png",
                 alt: "Logo",
                 class: "logo",
-            },
-            Link {
-                to: "/",
+            }}} else {
+                rsx!{}
+            }},
+            a {
+                href: "/",
                 "New"
             },
-            Link {
-                to: "/list",
+            {if !props.no_listing {
+                rsx!{
+                    a
+             {
+                href: "/list",
                 "List"
+            }}} else {
+                rsx!{}
+                }
             },
-            Link {
-                to: "/guide",
+            a {
+                href: "/guide",
                 "Guide"
             }
         }
-    }
+        }
 }

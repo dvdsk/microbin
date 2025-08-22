@@ -1,18 +1,13 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::error_handling::AppError;
-use crate::pasta::Pasta;
 use askama::Template;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use reqwest::{StatusCode, header};
-
-#[derive(Template)]
-#[template(path = "list.html")]
-struct ListTemplate<'a> {
-    pastas: &'a Vec<Pasta>,
-    args: &'a Args,
-}
+use microbin_frontend::components::guide::Guide;
+use microbin_frontend::components::list::{List, ListProps};
+use models::args::Args;
+use models::error_handling::AppError;
+use models::pasta::Pasta;
 
 pub async fn list(
     State(AppState { args, db }): State<AppState>,
@@ -33,14 +28,12 @@ pub async fn list(
     // sort pastas in reverse-chronological order of creation time
     pastas.sort_by(|a, b| b.created.cmp(&a.created));
 
+    let list = dioxus_ssr::render_element(List((args, pastas).into()));
+
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ListTemplate {
-            pastas: &pastas,
-            args: &args,
-        }
-        .render()?,
+        list,
     ))
 }
 

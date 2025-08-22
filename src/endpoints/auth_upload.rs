@@ -1,10 +1,4 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::endpoints::errors::ErrorTemplate;
-use crate::error_handling::AppError;
-use crate::pasta::Pasta;
-use crate::util::animalnumbers::to_u64;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Path, State};
@@ -12,6 +6,12 @@ use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use db::entities::pasta::PastaEntity;
+use microbin_frontend::components::error::Error;
+use models::args::Args;
+use models::error_handling::AppError;
+use models::pasta::Pasta;
+use models::util::animalnumbers::to_u64;
+use models::util::hashids::to_u64_hash_ids;
 
 #[derive(Template)]
 #[template(path = "auth_upload.html")]
@@ -31,7 +31,7 @@ pub async fn auth_upload(
     // get access to the pasta collection
 
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -43,8 +43,8 @@ pub async fn auth_upload(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -70,7 +70,7 @@ pub async fn auth_upload_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -82,8 +82,8 @@ pub async fn auth_upload_with_status(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -108,7 +108,7 @@ pub async fn auth_raw_pasta(
     // get access to the pasta collection
 
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -118,8 +118,8 @@ pub async fn auth_raw_pasta(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -145,7 +145,7 @@ pub async fn auth_raw_pasta_with_status(
     // get access to the pasta collection
 
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -155,8 +155,8 @@ pub async fn auth_raw_pasta_with_status(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -182,7 +182,7 @@ pub async fn auth_edit_private(
     // get access to the pasta collection
 
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -192,8 +192,8 @@ pub async fn auth_edit_private(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -218,7 +218,7 @@ pub async fn auth_edit_private_with_status(
     // get access to the pasta collection
 
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -228,8 +228,8 @@ pub async fn auth_edit_private_with_status(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -252,7 +252,7 @@ pub async fn auth_file(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -261,8 +261,8 @@ pub async fn auth_file(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -285,7 +285,7 @@ pub async fn auth_file_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -297,8 +297,8 @@ pub async fn auth_file_with_status(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
 
@@ -321,7 +321,7 @@ pub async fn auth_remove_private(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, AppError> {
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -331,8 +331,8 @@ pub async fn auth_remove_private(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body));
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error));
         }
     }?;
     let mut headers = HeaderMap::new();
@@ -354,7 +354,7 @@ pub async fn auth_remove_private_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<impl IntoResponse, AppError> {
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -363,9 +363,9 @@ pub async fn auth_remove_private_with_status(
         Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
         None => {
             let mut headers = HeaderMap::new();
-            let body = ErrorTemplate { args: &args }.render()?;
+            let error = dioxus_ssr::render_element(Error(args.into()));
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            return Ok((headers, body));
+            return Ok((headers, error));
         }
     }?;
     let mut headers = HeaderMap::new();

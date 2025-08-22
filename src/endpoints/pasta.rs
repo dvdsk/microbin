@@ -1,11 +1,4 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::endpoints::errors::ErrorTemplate;
-use crate::error_handling::AppError;
-use crate::pasta::Pasta;
-use crate::util::animalnumbers::to_u64;
-use crate::util::auth;
-use crate::util::hashids::to_u64 as hashid_to_u64;
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -14,6 +7,13 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use magic_crypt::{MagicCryptTrait, new_magic_crypt};
 use std::time::{SystemTime, UNIX_EPOCH};
+use microbin_frontend::components::error::Error;
+use models::args::Args;
+use models::error_handling::AppError;
+use models::pasta::Pasta;
+use models::util::animalnumbers::to_u64;
+use models::util::hashids::to_u64_hash_ids;
+use crate::endpoints::auth;
 
 #[derive(Template)]
 #[template(path = "upload.html", escape = "none")]
@@ -30,7 +30,7 @@ fn pastaresponse(
     // get access to the pasta collection
 
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -44,8 +44,8 @@ fn pastaresponse(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            ));
+                dioxus_ssr::render_element(Error(args.into())))
+                .into_response());
         }
     }?;
 
@@ -61,7 +61,7 @@ fn pastaresponse(
                 ),
             )],
             "".to_string(),
-        ));
+        ).into_response());
     }
 
     // increment read count
@@ -88,7 +88,7 @@ fn pastaresponse(
                     ),
                 )],
                 "".to_string(),
-            ));
+            ).into_response());
         }
     }
 
@@ -122,7 +122,7 @@ fn pastaresponse(
 
     // save the updated read count
     db.update_pasta(&id, pasta.clone().into())?;
-    Ok(response)
+    Ok(response.into_response())
 }
 
 pub async fn postpasta(
@@ -158,7 +158,7 @@ fn urlresponse(AppState { args, db }: AppState, id: String) -> Result<impl IntoR
     // get access to the pasta collection
 
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -172,8 +172,8 @@ fn urlresponse(AppState { args, db }: AppState, id: String) -> Result<impl IntoR
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            ));
+                dioxus_ssr::render_element(Error(args.into())))
+                .into_response());
         }
     }?;
     // increment read count
@@ -203,15 +203,14 @@ fn urlresponse(AppState { args, db }: AppState, id: String) -> Result<impl IntoR
 
         // save the updated read count
         db.update_pasta(&id, pasta.clone().into())?;
-        Ok(response)
+        Ok(response.into_response())
     // send error if we're trying to open a non-url pasta as a redirect
     } else {
-        let response = (
+        Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            ErrorTemplate { args: &args }.render()?,
-        );
-        Ok(response)
+            dioxus_ssr::render_element(Error(args.into())))
+            .into_response())
     }
 }
 
@@ -236,7 +235,7 @@ pub async fn getrawpasta(
     // get access to the pasta collection
 
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -246,12 +245,11 @@ pub async fn getrawpasta(
     let mut pasta: Pasta = match opt_pasta {
         Some(pasta) => Ok::<Pasta, AppError>(pasta.into()),
         None => {
-            // otherwise, send pasta not found error
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            ));
+                dioxus_ssr::render_element(Error(args.into())))
+                .into_response())
         }
     }?;
     if pasta.encrypt_server {
@@ -266,7 +264,7 @@ pub async fn getrawpasta(
                 ),
             )],
             "".to_string(),
-        ));
+        ).into_response());
     }
 
     // increment read count
@@ -301,7 +299,7 @@ pub async fn getrawpasta(
         selected_pasta,
     );
 
-    Ok(response)
+    Ok(response.into_response())
 }
 
 pub async fn postrawpasta(
@@ -312,7 +310,7 @@ pub async fn postrawpasta(
     let password = auth::password_from_multipart(payload).await?;
 
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -326,8 +324,8 @@ pub async fn postrawpasta(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            ));
+                dioxus_ssr::render_element(Error(args.into())))
+                .into_response())
         }
     }?;
 
@@ -353,7 +351,7 @@ pub async fn postrawpasta(
                 ),
             )],
             "".to_string(),
-        ));
+        ).into_response());
     }
 
     // increment read count
@@ -381,7 +379,7 @@ pub async fn postrawpasta(
                     ),
                 )],
                 "".to_string(),
-            ));
+            ).into_response());
         }
     }
 
@@ -413,7 +411,7 @@ pub async fn postrawpasta(
     if pasta.content != original_content {
         pasta.content = original_content;
     }
-    Ok(response)
+    Ok(response.into_response())
 }
 
 fn decrypt(text_str: &str, key_str: &str) -> Result<String, magic_crypt::MagicCryptError> {

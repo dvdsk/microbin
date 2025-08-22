@@ -1697,3 +1697,8 @@ body > footer {
 .navbar a {
     font-size: 20px;
 }
+
+.list-table {
+    width: 100%;
+    min-width: 720px;
+}

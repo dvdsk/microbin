@@ -1,6 +1,5 @@
 extern crate core;
 
-use crate::args::Args;
 use crate::endpoints::admin::admin_router;
 use crate::endpoints::auth_admin::auth_admin_router;
 use crate::endpoints::create::create_routes;
@@ -14,9 +13,6 @@ use crate::endpoints::qr::qr_router;
 use crate::endpoints::remove::remove_router;
 use crate::endpoints::static_resources;
 use crate::static_resources::static_resource_router;
-use crate::util::auth::auth_validator;
-use crate::util::cleanup::start_cleanup_thread;
-use crate::util::telemetry::start_telemetry_thread;
 use ::db::database::{Database, get_database};
 use axum::extract::DefaultBodyLimit;
 use axum::{Router, middleware};
@@ -27,23 +23,14 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{env, fs};
 use tower_http::normalize_path::NormalizePathLayer;
-
-pub mod args;
-mod error_handling;
-
-pub mod util {
-    pub mod animalnumbers;
-    pub mod auth;
-    pub mod cleanup;
-    pub mod hashids;
-    pub mod http_client;
-    pub mod misc;
-    pub mod syntaxhighlighter;
-    pub mod telemetry;
-    pub mod version;
-}
+use tower_http::services::ServeDir;
+use models::args::Args;
+use models::util::cleanup::start_cleanup_thread;
+use models::util::telemetry::start_telemetry_thread;
+use crate::endpoints::auth::auth_validator;
 
 pub mod endpoints {
+    pub mod auth;
     pub mod admin;
     pub mod auth_admin;
     pub mod auth_upload;
@@ -75,7 +62,7 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
-    let default_log_env = Env::new().filter_or("MICROBIN_LOG", "info");
+    let default_log_env = Env::new().filter_or("MICROBIN_LOG", "info,dioxus_signals=error");
 
     Builder::from_env(default_log_env)
         .format(|buf, record| {
@@ -113,6 +100,9 @@ async fn main() -> std::io::Result<()> {
 
     start_cleanup_thread(&app_state.db, args.clone());
 
+    let static_files = ServeDir::new("./ui/assets");
+
+
     let mut router = Router::new()
         .merge(create_routes())
         .merge(admin_router())
@@ -125,6 +115,7 @@ async fn main() -> std::io::Result<()> {
         .merge(remove_router())
         .merge(static_resource_router())
         .merge(auth_admin_router())
+        .nest_service("/assets", static_files)
         .fallback(not_found)
         .with_state(app_state.clone());
 

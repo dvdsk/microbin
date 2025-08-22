@@ -1,8 +1,9 @@
 use crate::error_handling::AppError;
-use crate::{args::Args, util::misc::clean_up_expired_pastes};
+use crate::{util::misc::clean_up_expired_pastes};
 use db::database::DatabaseType;
 use std::{fs, sync::Arc, thread, time::Duration};
-use models::pasta::Pasta;
+use crate::args::Args;
+use crate::pasta::Pasta;
 
 pub fn start_cleanup_thread(db: &DatabaseType, args: Args) {
     let db = Arc::clone(db);

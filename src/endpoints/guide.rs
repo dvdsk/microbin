@@ -1,23 +1,19 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::error_handling::AppError;
 use askama::Template;
 use axum::Router;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
-
-#[derive(Template)]
-#[template(path = "guide.html")]
-struct Guide<'a> {
-    args: &'a Args,
-}
+use microbin_frontend::components::guide::{Guide, GuideProps};
+use models::args::Args;
+use models::error_handling::AppError;
 
 pub async fn guide(
     State(AppState { args, .. }): State<AppState>,
 ) -> Result<impl IntoResponse, AppError> {
+    let guide = dioxus_ssr::render_element(Guide(args.into()));
     Ok(Response::builder()
         .header("Content-Type", "text/html; charset=utf-8")
-        .body(Guide { args: &args }.render()?)?)
+        .body(guide)?.into_response())
 }
 
 pub fn guide_router() -> Router<AppState> {

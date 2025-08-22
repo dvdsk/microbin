@@ -1,10 +1,4 @@
-use crate::args::Args;
-use crate::endpoints::errors::ErrorTemplate;
-use crate::error_handling::AppError;
-use crate::util::animalnumbers::to_u64;
-use crate::util::hashids::to_u64 as hashid_to_u64;
-use crate::util::misc::{decrypt, encrypt};
-use crate::{AppState, Pasta};
+use crate::{AppState};
 use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
@@ -13,6 +7,13 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use db::entities::pasta::PastaEntity;
 use futures::TryStreamExt;
+use microbin_frontend::components::error::Error;
+use models::args::Args;
+use models::error_handling::AppError;
+use models::pasta::Pasta;
+use models::util::animalnumbers::to_u64;
+use models::util::hashids::to_u64_hash_ids;
+use models::util::misc::{decrypt, encrypt};
 
 #[derive(Template)]
 #[template(path = "edit.html", escape = "none")]
@@ -28,7 +29,7 @@ pub async fn get_edit(
     Path(id): Path<String>,
 ) -> Result<axum::response::Response, AppError> {
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -78,8 +79,7 @@ pub async fn get_edit(
         None => Ok((
             StatusCode::OK,
             [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-            ErrorTemplate { args: &args }.render()?,
-        )
+            dioxus_ssr::render_element(Error(args.into())))
             .into_response()),
     }
 }
@@ -89,7 +89,7 @@ pub async fn get_edit_with_status(
     Path((id, status)): Path<(String, String)>,
 ) -> Result<axum::response::Response, AppError> {
     let intern_id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -102,8 +102,7 @@ pub async fn get_edit_with_status(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            )
+                dioxus_ssr::render_element(Error(args.into())))
                 .into_response());
         }
     }?;
@@ -154,7 +153,7 @@ pub async fn post_edit_private(
     // get access to the pasta collection
 
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -165,8 +164,7 @@ pub async fn post_edit_private(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            )
+                dioxus_ssr::render_element(Error(args.into())))
                 .into_response());
         }
     }?;
@@ -230,8 +228,7 @@ pub async fn post_edit_private(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &args }.render()?,
-    )
+        dioxus_ssr::render_element(Error(args.into())))
         .into_response())
 }
 
@@ -241,7 +238,7 @@ pub async fn post_submit_edit_private(
     mut payload: Multipart,
 ) -> Result<axum::response::Response, AppError> {
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -251,8 +248,8 @@ pub async fn post_submit_edit_private(
         None => {
             let mut headers = HeaderMap::new();
             headers.insert("Content-Type", "text/html; charset=utf-8".parse()?);
-            let body = ErrorTemplate { args: &args }.render()?;
-            return Ok((headers, body).into_response());
+            let error = dioxus_ssr::render_element(Error(args.into()));
+            return Ok((headers, error).into_response());
         }
     }?;
 
@@ -345,7 +342,7 @@ pub async fn post_edit(
     mut payload: Multipart,
 ) -> Result<axum::response::Response, AppError> {
     let id = if args.hash_ids {
-        hashid_to_u64(&id).unwrap_or(0)
+        to_u64_hash_ids(&id).unwrap_or(0)
     } else {
         to_u64(&id).unwrap_or(0)
     };
@@ -356,8 +353,7 @@ pub async fn post_edit(
             return Ok((
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-                ErrorTemplate { args: &args }.render()?,
-            )
+                dioxus_ssr::render_element(Error(args.into())))
                 .into_response());
         }
     }?;
@@ -440,8 +436,7 @@ pub async fn post_edit(
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        ErrorTemplate { args: &args }.render()?,
-    )
+        dioxus_ssr::render_element(Error(args.into())))
         .into_response())
 }
 

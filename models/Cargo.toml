@@ -16,3 +16,22 @@ serde = { version = "1.0.197", features = ["derive"] }
 env_logger = "0.11.8"
 log = "0.4.21"
 harsh = "0.2"
+base64 = "0.22.1"
+reqwest = "0.12.23"
+axum = "0.8.4"
+magic-crypt = "4.0.1"
+qrcode-generator = "5.0.0"
+linkify = "0.10.0"
+clap = { version = "4.5.45", features = ["derive"] }
+syntect = "5.2.0"
+color-eyre = "0.6.5"
+askama = "0.14.0"
+webpki-roots = { version = "1.0.2", optional = true }
+rustls = { version = "0.23", default-features = false, features = ["custom-provider"], optional = true }
+rustls-rustcrypto = { version = "0.0.2-alpha", optional = true }
+html-escape = "0.2.13"
+
+
+[features]
+__rustcrypto-tls = []
+default = ["__rustcrypto-tls", "webpki-roots", "dep:rustls", "dep:rustls-rustcrypto"]

@@ -1,10 +1,10 @@
 use crate::AppState;
-use crate::args::Args;
-use crate::error_handling::AppError;
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::Response;
 use axum::response::IntoResponse;
+use models::args::Args;
+use models::error_handling::AppError;
 
 #[derive(Template)]
 #[template(path = "auth_admin.html")]
