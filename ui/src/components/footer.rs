@@ -1,6 +1,5 @@
 use crate::components::list::ListProps;
 use dioxus::dioxus_core::Element;
-use dioxus::html::completions::CompleteWithBraces::a;
 use dioxus::prelude::*;
 use models::args::Args;
 
@@ -28,6 +27,7 @@ impl From<Args> for FooterProps {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn Footer(hide_footer: FooterProps) -> Element {
     if !hide_footer.hide_footer {
         rsx! {
@@ -72,6 +72,7 @@ pub fn Footer(hide_footer: FooterProps) -> Element {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn ShowableFooter() -> Element {
     rsx! {
         Footer { hide_footer:  false }

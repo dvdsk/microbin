@@ -1,9 +1,9 @@
+use crate::components::footer::Footer;
+use crate::components::navbar::Navbar;
 use dioxus::core_macro::Props;
 use dioxus::prelude::*;
 use models::args::Args;
 use models::pasta::Pasta;
-use crate::components::footer::Footer;
-use crate::components::navbar::Navbar;
 
 #[derive(PartialEq, Props, Clone)]
 pub struct QRProps {
@@ -17,7 +17,6 @@ pub struct QRProps {
     pub qr_code: String,
     pub pasta: Pasta,
 }
-
 
 impl From<(Args, String, Pasta)> for QRProps {
     fn from(args: (Args, String, Pasta)) -> Self {
@@ -35,14 +34,22 @@ impl From<(Args, String, Pasta)> for QRProps {
     }
 }
 
-
+#[allow(non_snake_case)]
 pub fn QRCode(props: QRProps) -> Element {
     let url_to_pasta = match props.pasta.pasta_type == "url" {
-        true=>{
-            format!("{}url/{}", props.public_path, props.pasta.id_as_animals(&props.hash_ids))
-        },
-        false=> {
-            format!("{}upload/{}", props.public_path, props.pasta.id_as_animals(&props.hash_ids))
+        true => {
+            format!(
+                "{}url/{}",
+                props.public_path,
+                props.pasta.id_as_animals(&props.hash_ids)
+            )
+        }
+        false => {
+            format!(
+                "{}upload/{}",
+                props.public_path,
+                props.pasta.id_as_animals(&props.hash_ids)
+            )
         }
     };
     rsx! {

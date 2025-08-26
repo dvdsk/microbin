@@ -1,19 +1,16 @@
 use crate::AppState;
-use askama::Template;
 use axum::Router;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use microbin_frontend::components::error::Error;
-use models::args::Args;
 use models::error_handling::AppError;
 use models::pasta::Pasta;
 use models::util::animalnumbers::to_u64;
 use models::util::hashids::to_u64_hash_ids;
 use models::util::misc;
 use reqwest::header;
-use microbin_frontend::components::qr::QRProps;
 
 pub async fn getqr(
     State(AppState { args, db }): State<AppState>,
@@ -51,7 +48,7 @@ pub async fn getqr(
     };
 
     let qr_template = dioxus_ssr::render_element(microbin_frontend::components::qr::QRCode(
-        (args, svg, pasta).into()
+        (args, svg, pasta).into(),
     ));
 
     // serve qr code in template

@@ -1,7 +1,6 @@
 use crate::components::error::ErrorProps;
 use crate::components::list::ListProps;
 use dioxus::prelude::*;
-use models::args::Args;
 
 #[derive(PartialEq, Props, Clone)]
 pub struct NavbarProps {
@@ -30,6 +29,7 @@ impl From<ErrorProps> for NavbarProps {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn Navbar(props: NavbarProps) -> Element {
     rsx! {
     nav {

@@ -6,5 +6,5 @@ pub mod links;
 mod list;
 mod list_table;
 pub mod navbar;
-mod text_input;
 pub mod qr;
+mod text_input;

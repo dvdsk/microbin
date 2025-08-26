@@ -1,10 +1,8 @@
 use crate::AppState;
-use askama::Template;
 use axum::Router;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
-use microbin_frontend::components::guide::{Guide, GuideProps};
-use models::args::Args;
+use microbin_frontend::components::guide::Guide;
 use models::error_handling::AppError;
 
 pub async fn guide(

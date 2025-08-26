@@ -1,9 +1,7 @@
 use crate::AppState;
-use askama::Template;
 use axum::extract::State;
 use axum::response::{IntoResponse, Response};
-use microbin_frontend::components::error::{Error, ErrorProps};
-use microbin_frontend::components::footer::FooterProps;
+use microbin_frontend::components::error::Error;
 use models::error_handling::AppError;
 
 pub async fn not_found(

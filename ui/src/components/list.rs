@@ -4,7 +4,6 @@ use crate::components::list_table::ListTable;
 use crate::components::navbar::Navbar;
 use crate::components::navbar::NavbarProps;
 use dioxus::core_macro::Props;
-use dioxus::html::KeyCode::F;
 use dioxus::prelude::*;
 use models::args::Args;
 use models::pasta::Pasta;
@@ -36,6 +35,7 @@ impl From<(Args, Vec<Pasta>)> for ListProps {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn List(list_props: ListProps) -> Element {
     if list_props.pastas.is_empty() {
         rsx! {

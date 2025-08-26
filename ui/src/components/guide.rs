@@ -29,6 +29,7 @@ impl From<Args> for GuideProps {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn Guide(props: GuideProps) -> Element {
     rsx! {
             head{

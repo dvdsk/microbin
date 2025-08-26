@@ -1,7 +1,7 @@
 use crate::components::list::ListProps;
-use dioxus::logger::tracing::log;
 use dioxus::prelude::*;
 
+#[allow(non_snake_case)]
 pub fn ListTable(list_props: ListProps) -> Element {
     let public_js_path = format!("{}assets/js/list.js", list_props.public_path);
     rsx! {

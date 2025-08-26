@@ -1,6 +1,5 @@
 use crate::AppState;
 use crate::endpoints::auth;
-use askama::Template;
 use axum::Router;
 use axum::extract::{Multipart, Path, State};
 use axum::http::StatusCode;

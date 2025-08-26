@@ -28,6 +28,7 @@ impl From<Args> for ErrorProps {
     }
 }
 
+#[allow(non_snake_case)]
 pub fn Error(props: ErrorProps) -> Element {
     rsx! {
                   head{

@@ -1,10 +1,7 @@
 use crate::AppState;
-use askama::Template;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use microbin_frontend::components::guide::Guide;
-use microbin_frontend::components::list::{List, ListProps};
-use models::args::Args;
+use microbin_frontend::components::list::List;
 use models::error_handling::AppError;
 use models::pasta::Pasta;
 use reqwest::{StatusCode, header};
