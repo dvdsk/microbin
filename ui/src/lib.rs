@@ -5,4 +5,5 @@ pub mod components {
     pub mod list;
     pub mod list_table;
     pub mod navbar;
+    pub mod qr;
 }

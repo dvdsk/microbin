@@ -13,14 +13,7 @@ use models::util::animalnumbers::to_u64;
 use models::util::hashids::to_u64_hash_ids;
 use models::util::misc;
 use reqwest::header;
-
-#[derive(Template)]
-#[template(path = "qr.html", escape = "none")]
-struct QRTemplate<'a> {
-    args: &'a Args,
-    qr: &'a String,
-    pasta: &'a Pasta,
-}
+use microbin_frontend::components::qr::QRProps;
 
 pub async fn getqr(
     State(AppState { args, db }): State<AppState>,
@@ -57,12 +50,9 @@ pub async fn getqr(
         ),
     };
 
-    let qr_template = QRTemplate {
-        qr: &svg,
-        pasta: &pasta,
-        args: &args,
-    }
-    .render()?;
+    let qr_template = dioxus_ssr::render_element(microbin_frontend::components::qr::QRCode(
+        (args, svg, pasta).into()
+    ));
 
     // serve qr code in template
     Ok([(header::CONTENT_TYPE, "text/html; charset=utf-8")]

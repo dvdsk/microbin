@@ -1,5 +1,5 @@
-use dioxus::logger::tracing::log;
 use crate::components::list::ListProps;
+use dioxus::logger::tracing::log;
 use dioxus::prelude::*;
 
 pub fn ListTable(list_props: ListProps) -> Element {
@@ -142,7 +142,7 @@ pub fn ListTable(list_props: ListProps) -> Element {
                                         }
                                     td {
                                         a {
-                                            href: format!("{}/remove/{}", list_props.public_path, item.id_as_animals(&list_props.hash_ids)),
+                                            href: format!("{}remove/{}", list_props.public_path, item.id_as_animals(&list_props.hash_ids)),
                                             "Remove"
                                         }
                                     }
@@ -156,6 +156,113 @@ pub fn ListTable(list_props: ListProps) -> Element {
                     })
                     }
                 }
+            },
+            h2 {
+                "URL Redirects"
+            },
+            table {
+                class: "list-table",
+                thead {
+                    th {
+                        style: "width: 25%;",
+                        "Key"
+                    },
+                    th {
+                        style: "width: 10%;",
+                    },
+                    th {
+                        style: "width: 15%;",
+                        "Created"
+                    },
+                    th {
+                        style: "width: 15%;",
+                        "Expiration"
+                    },
+                    th {
+                        style: "width: 15%;",
+                        "Contents"
+                    },
+                    th {
+                        style: "width: 10%;",
+                    },
+                    th {
+                        style: "width: 10%;",
+                    }
+                },
+                tbody {
+                {
+                    list_props.pastas.iter().filter(|item|item.pasta_type == "url" && !item.private).map
+                    (|item|{
+                    let item = item.clone();
+                        let pasta_id = item.id_as_animals(&list_props.hash_ids);
+                        let upload_url = format!("{}upload/{}", list_props.public_path, pasta_id);
+                        let edit_url = format!("{}edit/{}", list_props.public_path, pasta_id);
+                        let remove_url = format!("{}remove/{}", list_props.public_path, pasta_id);
+                        let copy_url = match list_props.short_path.is_empty() {
+                            true=>{
+                                format!("{}url/{}", list_props.public_path, pasta_id)
+                            },
+                            false=>{
+                                format!("{}u/{}", list_props.short_path, pasta_id)
+                            }
+                        };
+
+
+                        return rsx!{
+                            tr{
+                            td {
+                                a {
+                                    href: upload_url,
+                                        {pasta_id}
+                                }
+                            },
+                                td {
+                                    a {
+                                        style: "margin-right:1rem; cursor: pointer;",
+                                        class: "copy-button",
+                                        data: copy_url.clone(),
+                                        "Copy"
+                                    }
+                                },
+                                td {
+                                    "{item.created_as_string()}"
+                                },
+                                td {
+                                    "{item.expiration_as_string()}"
+                                },
+                                td {
+                                    a {
+                                        href: "{copy_url}",
+                                        "Link"
+                                    }
+                                }
+                                td {
+                                    {
+                                        if item.editable{
+                                        rsx!{a{
+                                                href: edit_url,
+                                                "Edit"
+                                            }
+                                    }} else {
+                                        rsx!{
+
+                                        }
+                                    }
+                                    }
+                                },
+                                td {
+                                    a {
+                                        href: remove_url,
+                                        "Remove"
+                                    }
+                                }
+                        }
+                            }
+
+                })
+                }
+
+            }
             }
         }
 }
