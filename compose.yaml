@@ -1,11 +1,13 @@
 services:
   microbin:
-    image: ghcr.io/dvdsk/microbin:latest
+    image: ghcr.io/yara-blue/microbin:latest
     restart: always
     ports:
      - "${MICROBIN_PORT}:8080"
     volumes:
      - ./microbin-data:/app/microbin_data
+     env_file:
+     - ./microbin-data/.env
     environment:
       MICROBIN_BASIC_AUTH_USERNAME: ${MICROBIN_BASIC_AUTH_USERNAME}
       MICROBIN_BASIC_AUTH_PASSWORD: ${MICROBIN_BASIC_AUTH_PASSWORD}
